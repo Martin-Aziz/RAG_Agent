@@ -26,6 +26,11 @@ async def root_html():
     return {"status": "ok"}
 
 
+    @app.get("/health")
+    async def health():
+        return {"status": "ok"}
+
+
 @app.post("/query", response_model=QueryResponse)
 async def query_endpoint(req: Request):
     body = await req.json()

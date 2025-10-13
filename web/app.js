@@ -22,10 +22,19 @@ form.addEventListener('submit', async (e) => {
   question.value = '';
   appendMessage('bot', '...thinking');
   try {
+    // include required fields expected by QueryRequest pydantic model
+    const payload = {
+      user_id: 'web_user',
+      session_id: String(Date.now()),
+      query: q,
+      mode: modeSel.value,
+      context_ids: [],
+      prefer_low_cost: true
+    };
     const res = await fetch('/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: q, mode: modeSel.value })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     // replace last bot 'thinking' with actual
