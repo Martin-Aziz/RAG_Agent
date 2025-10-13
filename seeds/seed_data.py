@@ -1,11 +1,11 @@
 import json
+import os
+
 from core.agents.retriever_vector import VectorRetriever
 from core.agents.retriever_bm25 import BM25Retriever
 from core.agents.hoprag_graph import HopRAG
-import os
 from core.agents.retriever_faiss import FAISSRetriever
 from core.embedders.ollama_embedder import OllamaEmbedder
-import os
 
 
 def seed():

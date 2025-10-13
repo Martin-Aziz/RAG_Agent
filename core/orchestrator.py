@@ -1,21 +1,20 @@
 from typing import List, Dict, Any, Optional
-from api.schemas import QueryRequest, QueryResponse, EvidenceItem, AgentStep
-from core.model_adapters import SLMStub, OllamaAdapter
 import os
 import json
+import asyncio
+import time
+
+from api.schemas import QueryRequest, QueryResponse, EvidenceItem, AgentStep
+from core.model_adapters import SLMStub, OllamaAdapter
 from core.router import Router
 from core.agents.retriever_vector import VectorRetriever
 from core.agents.retriever_bm25 import BM25Retriever
 from core.agents.hoprag_graph import HopRAG
-from core.agents.verifier import Verifier
-from core.agents.verifier import EmbeddingVerifier
+from core.agents.verifier import Verifier, EmbeddingVerifier
 from core.agents.tool_agent import ToolRegistry
 from core.agents.memory_agent import MemoryAgent
 from core.agents.retriever_faiss import FAISSRetriever
 from core.embedders.ollama_embedder import OllamaEmbedder
-import os
-import asyncio
-import time
 
 # Import new advanced capabilities
 try:
