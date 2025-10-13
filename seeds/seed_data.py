@@ -18,6 +18,18 @@ def seed():
         for fct in item.get("facts", []):
             docs.append({"doc_id": fct.get("doc_id"), "text": fct.get("text")})
 
+    # include any CLI-added docs persisted under data/cli_docs.json
+    cli_docs_path = os.path.join("data", "cli_docs.json")
+    if os.path.exists(cli_docs_path):
+        try:
+            with open(cli_docs_path, "r", encoding="utf-8") as cf:
+                cli_docs = json.load(cf)
+                for d in cli_docs:
+                    if isinstance(d, dict) and d.get("doc_id") and d.get("text"):
+                        docs.append({"doc_id": d["doc_id"], "text": d["text"]})
+        except Exception:
+            pass
+
     use_faiss = os.getenv("ENABLE_FAISS", "0") == "1"
     if use_faiss:
         # try to use Ollama embedder if configured; default to qwen3-embedding:latest

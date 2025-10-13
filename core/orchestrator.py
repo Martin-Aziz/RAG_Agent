@@ -104,10 +104,12 @@ class Orchestrator:
             for p in passages:
                 evidence.append(EvidenceItem(doc_id=p["doc_id"], passage_id=p["passage_id"], score=p.get("score", 1.0), text=p.get("text", "")))
             # prefer async interface if available
+            # convert to plain dicts for models expecting simple structures
+            evidence_dicts = [ {"doc_id": e.doc_id, "passage_id": e.passage_id, "score": e.score, "text": e.text} for e in evidence ]
             if hasattr(self.model, "generate_answer_async"):
-                answer = await self.model.generate_answer_async(req.query, evidence)
+                answer = await self.model.generate_answer_async(req.query, evidence_dicts)
             else:
-                answer = self.model.generate_answer(req.query, evidence)
+                answer = self.model.generate_answer(req.query, evidence_dicts)
             return QueryResponse(answer=answer, evidence=evidence, trace=trace, confidence=0.6)
 
         # PAR-RAG execution
@@ -149,10 +151,12 @@ class Orchestrator:
                 evidence.append(EvidenceItem(doc_id=it.get("doc_id", "doc"), passage_id=it.get("passage_id", "p"), score=it.get("score", 1.0), text=it.get("text", "")))
 
         # final synthesis
+        # convert evidence to plain dicts for model consumption
+        evidence_dicts = [ {"doc_id": e.doc_id, "passage_id": e.passage_id, "score": e.score, "text": e.text} for e in evidence ]
         if hasattr(self.model, "generate_answer_async"):
-            answer = await self.model.generate_answer_async(req.query, evidence)
+            answer = await self.model.generate_answer_async(req.query, evidence_dicts)
         else:
-            answer = self.model.generate_answer(req.query, evidence)
+            answer = self.model.generate_answer(req.query, evidence_dicts)
         trace.append(AgentStep(step_id="synth-1", agent="synthesizer", action="synthesize", result={"answer": answer}))
         elapsed = time.time() - start
         trace.append(AgentStep(step_id="meta-1", agent="orchestrator", action="timing", result={"elapsed": elapsed}))
