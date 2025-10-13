@@ -66,6 +66,15 @@ async def query_endpoint(req: Request):
     start = time.time()
     try:
         logger.info(f"handling request", extra={"request_id": request_id})
+        # lazy initialize orchestrator if startup event didn't run
+        global orch
+        if orch is None:
+            try:
+                from seeds.seed_data import seed
+                seed()
+            except Exception:
+                pass
+            orch = Orchestrator()
         result = await orch.handle_query(q)
         elapsed = time.time() - start
         LATENCY_HIST.labels(mode=mode).observe(elapsed)
