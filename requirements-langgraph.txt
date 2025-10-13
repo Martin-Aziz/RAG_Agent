@@ -1,0 +1,19 @@
+# LangGraph Orchestration & Multi-Agent Dependencies
+langgraph>=0.2.0
+langchain>=0.1.0
+langchain-community>=0.0.20
+langchain-core>=0.1.0
+
+# Neo4j for GraphRAG
+neo4j>=5.14.0
+py2neo>=2021.2.3
+
+# AutoGen & CrewAI (optional multi-agent frameworks)
+pyautogen>=0.2.0
+crewai>=0.1.0
+crewai-tools>=0.1.0
+
+# Additional utilities
+tiktoken>=0.5.0
+rank-bm25>=0.2.2
+pyyaml>=6.0

@@ -8,3 +8,21 @@ Persisted 10 docs to data/docs.json
 Seeded docs: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'g1', 'g2', 'g3', 'custom_0']
 Orchestrator initialized
 INFO:     127.0.0.1:54787 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55938 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55938 - "GET /styles.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55939 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55939 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56101 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56101 - "GET /styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56102 - "GET /app.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:56101 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56137 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56137 - "GET /styles.css HTTP/1.1" 200 OK
+2025-10-13 13:47:08,077 INFO 5d3ccd5f948c4ef0881a7c9b1ed96ae5 handling request
+INFO:     127.0.0.1:56153 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56176 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56177 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56176 - "GET /styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56177 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+2025-10-13 13:48:53,991 INFO 57024cf0f53a41d8b2001589eff17325 handling request
+INFO:     127.0.0.1:56183 - "POST /query HTTP/1.1" 200 OK
