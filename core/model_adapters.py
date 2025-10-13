@@ -96,6 +96,38 @@ class OllamaAdapter:
             yield line
         p.wait()
 
+    async def generate_answer_stream(self, query: str, evidence: List[Dict[str, Any]]):
+        """Async generator that yields streaming chunks from the Ollama CLI."""
+        prompt = f"Answer the user query: {query}\nGiven evidence:\n"
+        for e in evidence:
+            prompt += f"- {e.get('text','')}\n"
+        LLM_CALLS.labels(model=self.model).inc()
+        try:
+            # run the blocking stream in a thread and yield lines as they come
+            def runner():
+                for ln in self._stream_cli(prompt):
+                    yield ln
+
+            # asyncio.to_thread doesn't support yielding; instead, run synchronously in thread and collect
+            # We'll spawn a subprocess here directly and read its stdout asynchronously using asyncio
+            proc = await asyncio.create_subprocess_exec(
+                "ollama", "run", self.model, "--prompt", prompt,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
+            )
+            assert proc.stdout is not None
+            while True:
+                chunk = await proc.stdout.readline()
+                if not chunk:
+                    break
+                yield chunk.decode(errors="replace")
+            await proc.wait()
+        except FileNotFoundError:
+            raise RuntimeError("'ollama' CLI not found in PATH.")
+        except Exception:
+            # fallback: return full text via run_cli
+            text = await asyncio.to_thread(self._run_cli, prompt)
+            yield text
+
     async def generate_answer_async(self, query: str, evidence: List[Dict[str, Any]]) -> str:
         prompt = f"Answer the user query: {query}\nGiven evidence:\n"
         for e in evidence:

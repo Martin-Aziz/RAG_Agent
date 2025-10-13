@@ -76,9 +76,10 @@ class EmbeddingVerifier:
         # determine threshold: if self.threshold is None, compute a dynamic value
         if self.threshold is None:
             # use instruction length (words) to scale threshold modestly
+            # tuned to be slightly less strict by default than before
             n_words = len(instruction.split()) if instruction else 0
-            # base 0.45, add 0.005 per word, clamp between 0.5 and 0.9
-            dyn = min(0.9, max(0.5, 0.45 + 0.005 * float(n_words)))
+            # base 0.45, add 0.004 per word, clamp between 0.45 and 0.85
+            dyn = min(0.85, max(0.45, 0.45 + 0.004 * float(n_words)))
             threshold = dyn
         else:
             threshold = self.threshold
@@ -86,4 +87,57 @@ class EmbeddingVerifier:
         ok = best_score >= threshold
         best_pass = passages[best_idx] if best_idx >= 0 else None
         return ok, {"best_score": best_score, "best_passage": best_pass, "threshold": threshold}
+
+    @staticmethod
+    def calibrate_threshold(embedder, labeled_samples: List[Dict[str, Any]], percentile: float = 10.0) -> float:
+        """Calibrate a threshold from labeled samples.
+
+        labeled_samples: list of {"instruction": str, "positives": [str, ...]}
+        Returns a conservative threshold at the given lower percentile of max similarities
+        across samples.
+        """
+        try:
+            import numpy as _np
+        except Exception:
+            _np = None
+
+        max_scores = []
+        for s in labeled_samples:
+            inst = s.get("instruction")
+            positives = s.get("positives", [])
+            try:
+                inst_emb = embedder.embed([inst])[0]
+                pos_embs = embedder.embed(positives)
+            except Exception:
+                continue
+            # compute max cosine
+            best = 0.0
+            for pe in pos_embs:
+                # cosine
+                try:
+                    import math
+                    dot = sum(x * y for x, y in zip(inst_emb, pe))
+                    na = math.sqrt(sum(x * x for x in inst_emb))
+                    nb = math.sqrt(sum(y * y for y in pe))
+                    score = 0.0 if na == 0 or nb == 0 else dot / (na * nb)
+                except Exception:
+                    score = 0.0
+                if score > best:
+                    best = score
+            max_scores.append(best)
+
+        if not max_scores:
+            return 0.6
+
+        if _np is not None:
+            thr = float(_np.percentile(_np.array(max_scores), percentile))
+        else:
+            # fallback percentile
+            max_scores.sort()
+            k = max(0, int(len(max_scores) * (percentile / 100.0)) - 1)
+            thr = float(max_scores[k])
+
+        # clamp into reasonable bounds
+        thr = min(0.95, max(0.3, thr))
+        return thr
 

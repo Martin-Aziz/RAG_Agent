@@ -119,11 +119,18 @@ async def repl():
         # lightweight request object with required attributes
         req = type("Req", (), {"query": q, "mode": "parrag"})()
         try:
-            if args.stream and hasattr(orch, "model") and hasattr(orch.model, "generate_answer_async"):
-                # attempt streaming by calling generate_answer_async and printing chunks if the model yields them
-                resp = await orch.handle_query(req)
-                print("Bot:")
-                print(resp.answer)
+            if args.stream and hasattr(orch, "model") and hasattr(orch.model, "generate_answer_stream"):
+                # stream tokens from the model and print as they arrive
+                print("Bot:", end="\n")
+                # handle both async generator and sync fallback
+                try:
+                    async for chunk in orch.model.generate_answer_stream(req.query, getattr(req, "evidence", [])):
+                        print(chunk, end="", flush=True)
+                    print("\n", end="")
+                except TypeError:
+                    # not async generator; fallback to single call
+                    resp = await orch.handle_query(req)
+                    print(resp.answer)
             else:
                 resp = await orch.handle_query(req)
                 print("Bot:")
