@@ -3,31 +3,76 @@ const form = document.getElementById('askForm');
 const question = document.getElementById('question');
 const modeSel = document.getElementById('mode');
 
-function appendMessage(who, text) {
-  const div = document.createElement('div');
-  div.className = `message ${who}`;
-  const b = document.createElement('div');
-  b.className = 'bubble';
-  b.textContent = text;
-  div.appendChild(b);
-  chatEl.appendChild(div);
+function createMessageEl(who, text, meta) {
+  const wrapper = document.createElement('div');
+  wrapper.className = `message ${who}`;
+
+  const avatar = document.createElement('div');
+  avatar.className = `avatar ${who}`;
+  avatar.textContent = who === 'user' ? 'U' : 'A';
+
+  const body = document.createElement('div');
+  body.className = 'body';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+
+  body.appendChild(bubble);
+  if (meta) {
+    const m = document.createElement('div');
+    m.className = 'meta';
+    m.textContent = meta;
+    body.appendChild(m);
+  }
+
+  if (who === 'user') {
+    wrapper.appendChild(body);
+    wrapper.appendChild(avatar);
+  } else {
+    wrapper.appendChild(avatar);
+    wrapper.appendChild(body);
+  }
+
+  return wrapper;
+}
+
+function appendMessage(who, text, meta) {
+  const el = createMessageEl(who, text, meta);
+  chatEl.appendChild(el);
   chatEl.scrollTop = chatEl.scrollHeight;
+  return el;
+}
+
+function renderEvidence(evidence) {
+  if (!evidence || !evidence.length) return;
+  const list = evidence.map(e => `• ${e.text}`).join('\n');
+  appendMessage('bot', list, 'Evidence');
+}
+
+function showTyping() {
+  const el = appendMessage('bot', 'Thinking...');
+  el.dataset.typing = '1';
+  const bubble = el.querySelector('.bubble');
+  bubble.style.opacity = 0.6;
+  return el;
 }
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const q = question.value.trim();
-  if(!q) return;
+  if (!q) return;
   appendMessage('user', q);
   question.value = '';
-  appendMessage('bot', '...thinking');
+
+  const typingEl = showTyping();
+
   try {
-    // include required fields expected by QueryRequest pydantic model
     const payload = {
       user_id: 'web_user',
       session_id: String(Date.now()),
       query: q,
-      mode: modeSel.value,
+      mode: modeSel ? modeSel.value : 'parrag',
       context_ids: [],
       prefer_low_cost: true
     };
@@ -37,19 +82,24 @@ form.addEventListener('submit', async (e) => {
       body: JSON.stringify(payload)
     });
     const data = await res.json();
-    // replace last bot 'thinking' with actual
-    const lastBot = chatEl.querySelector('.message.bot:last-child .bubble');
+
+    // replace typing
+    const bubble = typingEl.querySelector('.bubble');
     if (data.answer) {
-      lastBot.textContent = data.answer;
+      bubble.textContent = data.answer;
+      bubble.style.opacity = 1;
     } else {
-      lastBot.textContent = 'No answer';
+      bubble.textContent = 'No answer';
+      bubble.style.opacity = 1;
     }
+
     if (data.evidence && data.evidence.length) {
-      const ev = data.evidence.map(e => `- ${e.text}`).join('\n');
-      appendMessage('bot', ev);
+      renderEvidence(data.evidence);
     }
   } catch (err) {
     console.error(err);
-    appendMessage('bot', 'Error connecting to server');
+    const bubble = typingEl.querySelector('.bubble');
+    bubble.textContent = 'Error connecting to server';
+    bubble.style.opacity = 1;
   }
 });
