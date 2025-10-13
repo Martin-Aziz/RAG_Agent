@@ -38,11 +38,20 @@ class SLMStub:
             return "I don't know based on the provided documents."
         lines = [f"Based on {len(evidence)} pieces of evidence:"]
         for e in evidence[:3]:
-            # accept either dict-like or objects with .text
-            if hasattr(e, "get"):
-                text = e.get("text", "")
-            else:
-                text = getattr(e, "text", "")
+            # robustly accept dict-like or objects with .text (pydantic models)
+            try:
+                # dict-like (plain dict)
+                if isinstance(e, dict):
+                    text = e.get("text", "")
+                else:
+                    # objects (pydantic BaseModel or simple objects)
+                    text = getattr(e, "text", "")
+            except Exception:
+                # fallback to string conversion
+                try:
+                    text = str(e)
+                except Exception:
+                    text = ""
             lines.append(text)
         return "\n".join(lines)
 
@@ -105,10 +114,10 @@ class OllamaAdapter:
         """Async generator that yields streaming chunks from the Ollama CLI."""
         prompt = f"Answer the user query: {query}\nGiven evidence:\n"
         for e in evidence:
-            if hasattr(e, "get"):
+            if isinstance(e, dict):
                 txt = e.get("text", "")
             else:
-                txt = getattr(e, "text", "")
+                txt = getattr(e, "text", "") if hasattr(e, "text") else str(e)
             prompt += f"- {txt}\n"
         LLM_CALLS.labels(model=self.model).inc()
         try:
@@ -140,17 +149,21 @@ class OllamaAdapter:
     async def generate_answer_async(self, query: str, evidence: List[Dict[str, Any]]) -> str:
         prompt = f"Answer the user query: {query}\nGiven evidence:\n"
         for e in evidence:
-            if hasattr(e, "get"):
+            if isinstance(e, dict):
                 txt = e.get("text", "")
             else:
-                txt = getattr(e, "text", "")
+                txt = getattr(e, "text", "") if hasattr(e, "text") else str(e)
             prompt += f"- {txt}\n"
         LLM_CALLS.labels(model=self.model).inc()
         # prefer streaming if available
         try:
             text = ""
-            for chunk in await asyncio.to_thread(lambda: "".join(self._stream_cli(prompt))):
-                text += chunk
+            # try streaming via subprocess; if it fails, fall back to full run
+            try:
+                for chunk in self._stream_cli(prompt):
+                    text += chunk
+            except Exception:
+                text = await asyncio.to_thread(self._run_cli, prompt)
             if not text:
                 text = await asyncio.to_thread(self._run_cli, prompt)
             return text
