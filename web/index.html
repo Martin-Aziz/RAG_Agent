@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Agentic RAG Chat</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Agentic RAG Chat</h1>
+    <div id="chat" class="chat"></div>
+    <form id="askForm">
+      <input id="question" placeholder="Ask a question..." autocomplete="off" />
+      <select id="mode">
+        <option value="parrag">PAR-RAG</option>
+        <option value="hoprag">HopRAG</option>
+      </select>
+      <button type="submit">Send</button>
+    </form>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

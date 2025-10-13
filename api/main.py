@@ -4,10 +4,26 @@ from core.orchestrator import Orchestrator
 from core.observability import get_logger, new_request_id, redact_pii, REQUEST_COUNTER, LATENCY_HIST
 import uvicorn
 import time
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 app = FastAPI(title="Agentic RAG MVP")
 orch = Orchestrator()
 logger = get_logger()
+
+# mount static web UI
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "web")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=os.path.join(static_dir)), name="static")
+
+
+@app.get("/")
+async def root_html():
+    idx = os.path.join(static_dir, "index.html")
+    if os.path.exists(idx):
+        return FileResponse(idx, media_type="text/html")
+    return {"status": "ok"}
 
 
 @app.post("/query", response_model=QueryResponse)
