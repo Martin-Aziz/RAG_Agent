@@ -9,7 +9,12 @@ function createMessageEl(who, text, meta) {
 
   const avatar = document.createElement('div');
   avatar.className = `avatar ${who}`;
-  avatar.textContent = who === 'user' ? 'U' : 'A';
+  // Keep the avatar letter out of the DOM text flow to avoid it showing up
+  // when copying text or when textContent is read. Use a data attribute
+  // and render via CSS pseudo-element. Also mark aria-hidden so screen
+  // readers skip it (we keep accessible labels elsewhere if needed).
+  avatar.setAttribute('aria-hidden', 'true');
+  avatar.dataset.initial = who === 'user' ? 'U' : 'A';
 
   const body = document.createElement('div');
   body.className = 'body';
