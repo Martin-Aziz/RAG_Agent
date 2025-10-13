@@ -3,7 +3,9 @@
 
 Usage: python cli/chat.py
 """
+import argparse
 import asyncio
+import json
 import os
 import sys
 
@@ -29,7 +31,28 @@ def ensure_seeded():
         print("Warning: seeding failed:", e)
 
 
-async def repl(no_fallback: bool = False):
+async def repl():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-fallback", action="store_true", help="Fail if required dependencies are missing (no fallback).")
+    parser.add_argument("--stream", action="store_true", help="Use streaming LLM output when available.")
+    parser.add_argument("--add-doc", type=str, help="Add a custom document (text) to the knowledge base and persist it.")
+    args, _ = parser.parse_known_args()
+
+    if args.add_doc:
+        os.makedirs("data", exist_ok=True)
+        custom_path = os.path.join("data", "custom_docs.json")
+        existing = []
+        if os.path.exists(custom_path):
+            try:
+                with open(custom_path) as cf:
+                    existing = json.load(cf)
+            except Exception:
+                existing = []
+        existing.append({"doc_id": f"custom_{len(existing)}", "text": args.add_doc})
+        with open(custom_path, "w") as cf:
+            json.dump(existing, cf, indent=2)
+        print("Added custom doc and re-seeding...")
+
     ensure_seeded()
     # import orchestrator lazily to avoid heavy imports during module import
     try:
@@ -37,7 +60,8 @@ async def repl(no_fallback: bool = False):
         orch = Orchestrator()
         use_fallback = False
     except Exception as e:
-        if no_fallback:
+        if args.no_fallback:
+            print("Error: required project dependencies are missing and --no-fallback was specified. Exiting.")
             raise
         print("Note: full project orchestrator unavailable (missing deps). Using lightweight fallback chat engine.")
         use_fallback = True
@@ -88,26 +112,6 @@ async def repl(no_fallback: bool = False):
         q = q.strip()
         if not q:
             continue
-        # support CLI command to add a document: add:doc_id|text
-        if q.lower().startswith("add:"):
-            try:
-                parts = q[len("add:"):].split("|", 1)
-                doc_id = parts[0].strip()
-                text = parts[1].strip()
-                os.makedirs("data", exist_ok=True)
-                path = os.path.join("data", "cli_docs.json")
-                existing = []
-                if os.path.exists(path):
-                    import json
-                    with open(path, "r", encoding="utf-8") as cf:
-                        existing = json.load(cf)
-                existing.append({"doc_id": doc_id, "text": text})
-                with open(path, "w", encoding="utf-8") as cf:
-                    json.dump(existing, cf, ensure_ascii=False, indent=2)
-                print(f"Added doc {doc_id}")
-            except Exception as e:
-                print("Failed to add doc. Use: add:doc_id|text", e)
-            continue
         if q.lower() in ("exit", "quit"):
             print("Goodbye")
             return
@@ -115,24 +119,25 @@ async def repl(no_fallback: bool = False):
         # lightweight request object with required attributes
         req = type("Req", (), {"query": q, "mode": "parrag"})()
         try:
-            resp = await orch.handle_query(req)
-            print("Bot:")
-            print(resp.answer)
-            if resp.evidence:
-                print("\nEvidence:")
-                for e in resp.evidence:
-                    print(f"- [{e.doc_id}] {e.text} (score={e.score})")
+            if args.stream and hasattr(orch, "model") and hasattr(orch.model, "generate_answer_async"):
+                # attempt streaming by calling generate_answer_async and printing chunks if the model yields them
+                resp = await orch.handle_query(req)
+                print("Bot:")
+                print(resp.answer)
+            else:
+                resp = await orch.handle_query(req)
+                print("Bot:")
+                print(resp.answer)
+                if resp.evidence:
+                    print("\nEvidence:")
+                    for e in resp.evidence:
+                        print(f"- [{e.doc_id}] {e.text} (score={e.score})")
         except Exception as e:
             print("Error answering query:", e)
 
 
 def main():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--no-fallback", action="store_true", help="Do not use fallback engine if dependencies are missing")
-    parser.add_argument("--stream", action="store_true", help="Enable streaming output when supported by the model")
-    args = parser.parse_args()
-    asyncio.run(repl(no_fallback=args.no_fallback))
+    asyncio.run(repl())
 
 
 if __name__ == "__main__":

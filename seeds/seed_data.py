@@ -10,23 +10,36 @@ import os
 
 def seed():
     here = os.path.join(os.path.dirname(__file__), "..")
-    ds = os.path.join(here, "examples", "dataset_multi_hop.json")
-    with open(ds) as f:
+    # allow richer dataset path via env var, else prefer examples/richer_dataset.json if present
+    rich_path = os.getenv("RICH_DATA_PATH")
+    if not rich_path:
+        candidate = os.path.join(here, "examples", "richer_dataset.json")
+        if os.path.exists(candidate):
+            rich_path = candidate
+        else:
+            rich_path = os.path.join(here, "examples", "dataset_multi_hop.json")
+
+    with open(rich_path) as f:
         data = json.load(f)
     docs = []
-    for item in data:
-        for fct in item.get("facts", []):
-            docs.append({"doc_id": fct.get("doc_id"), "text": fct.get("text")})
+    # data may be list of entries each with a 'facts' list, or a flat list of docs
+    if isinstance(data, list) and data and isinstance(data[0], dict) and "facts" in data[0]:
+        for item in data:
+            for fct in item.get("facts", []):
+                docs.append({"doc_id": fct.get("doc_id"), "text": fct.get("text")})
+    else:
+        # assume it's a flat list of docs
+        for d in data:
+            docs.append({"doc_id": d.get("doc_id", d.get("id", "doc")), "text": d.get("text")})
 
-    # include any CLI-added docs persisted under data/cli_docs.json
-    cli_docs_path = os.path.join("data", "cli_docs.json")
-    if os.path.exists(cli_docs_path):
+    # also load any user-added custom docs persisted under data/custom_docs.json
+    custom_path = os.path.join("data", "custom_docs.json")
+    if os.path.exists(custom_path):
         try:
-            with open(cli_docs_path, "r", encoding="utf-8") as cf:
-                cli_docs = json.load(cf)
-                for d in cli_docs:
-                    if isinstance(d, dict) and d.get("doc_id") and d.get("text"):
-                        docs.append({"doc_id": d["doc_id"], "text": d["text"]})
+            with open(custom_path) as cf:
+                cdocs = json.load(cf)
+            for i, cd in enumerate(cdocs):
+                docs.append({"doc_id": cd.get("doc_id", f"custom_{i}"), "text": cd.get("text")})
         except Exception:
             pass
 
