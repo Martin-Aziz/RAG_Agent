@@ -127,7 +127,12 @@ async def repl(no_fallback: bool = False):
 
 
 def main():
-    asyncio.run(repl())
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-fallback", action="store_true", help="Do not use fallback engine if dependencies are missing")
+    parser.add_argument("--stream", action="store_true", help="Enable streaming output when supported by the model")
+    args = parser.parse_args()
+    asyncio.run(repl(no_fallback=args.no_fallback))
 
 
 if __name__ == "__main__":
