@@ -1,0 +1,52 @@
+[
+  {
+    "language": "es",
+    "query": "\u00bfQu\u00e9 es Python?",
+    "english": "What is Python?"
+  },
+  {
+    "language": "fr",
+    "query": "Qu'est-ce que Python?",
+    "english": "What is Python?"
+  },
+  {
+    "language": "de",
+    "query": "Was ist Python?",
+    "english": "What is Python?"
+  },
+  {
+    "language": "zh",
+    "query": "\u4ec0\u4e48\u662fPython?",
+    "english": "What is Python?"
+  },
+  {
+    "language": "ja",
+    "query": "Python\u3068\u306f\u4f55\u3067\u3059\u304b?",
+    "english": "What is Python?"
+  },
+  {
+    "language": "ar",
+    "query": "\u0645\u0627 \u0647\u0648 \u0628\u0627\u064a\u062b\u0648\u0646\u061f",
+    "english": "What is Python?"
+  },
+  {
+    "language": "ru",
+    "query": "\u0427\u0442\u043e \u0442\u0430\u043a\u043e\u0435 Python?",
+    "english": "What is Python?"
+  },
+  {
+    "language": "pt",
+    "query": "O que \u00e9 Python?",
+    "english": "What is Python?"
+  },
+  {
+    "language": "hi",
+    "query": "Python \u0915\u094d\u092f\u093e \u0939\u0948?",
+    "english": "What is Python?"
+  },
+  {
+    "language": "ko",
+    "query": "\ud30c\uc774\uc36c\uc774\ub780 \ubb34\uc5c7\uc778\uac00\uc694?",
+    "english": "What is Python?"
+  }
+]

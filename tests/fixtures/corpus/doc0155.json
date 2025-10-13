@@ -1,0 +1,24 @@
+{
+  "id": "doc0155",
+  "text": "Address: 57011 Krista Summit Suite 916, North John, IA 21432\n\nBack statement upon eat require join. Rise example sea want such couple hair lot. Fight history card. Tree quality improve begin no experience six. Pay piece our themselves.",
+  "metadata": {
+    "source": "sensitive_short_155.pdf",
+    "category": "sensitive",
+    "length_category": "short",
+    "word_count": 38,
+    "author": "Stephanie Edwards",
+    "created_date": "2025-05-10T09:07:25.298061",
+    "page_count": 1,
+    "contains_pii": true,
+    "pii_types": [
+      "name",
+      "email",
+      "phone",
+      "ssn",
+      "dob",
+      "cc_number",
+      "cc_exp",
+      "address"
+    ]
+  }
+}

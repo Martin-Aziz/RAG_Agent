@@ -1,0 +1,21 @@
+{
+  "num_documents": 200,
+  "categories": [
+    "programming",
+    "legal",
+    "medical",
+    "business",
+    "science"
+  ],
+  "length_distribution": {
+    "short": 50,
+    "medium": 48,
+    "long": 40,
+    "very_long": 20
+  },
+  "special_docs": {
+    "with_pii": 10,
+    "with_overlap": 5,
+    "duplicates": 3
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "doc0152",
+  "text": "Credit Card: 36212931831985, Exp: 07/34\n\nCenter matter fine such. Our wonder image way whose these court. Everything green tree technology fly mention article. Until people our brother great. Strategy recent evening cell of. My every black threat.",
+  "metadata": {
+    "source": "sensitive_short_152.pdf",
+    "category": "sensitive",
+    "length_category": "short",
+    "word_count": 37,
+    "author": "Pamela Wiggins",
+    "created_date": "2025-03-21T14:09:46.955209",
+    "page_count": 1,
+    "contains_pii": true,
+    "pii_types": [
+      "name",
+      "email",
+      "phone",
+      "ssn",
+      "dob",
+      "cc_number",
+      "cc_exp",
+      "address"
+    ]
+  }
+}

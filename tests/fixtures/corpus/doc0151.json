@@ -1,0 +1,24 @@
+{
+  "id": "doc0151",
+  "text": "Address: 928 Koch River, Gracemouth, TN 58179\n\nAmerican experience market other successful scientist husband now. Without agree TV position since ready name himself. Before decade market.",
+  "metadata": {
+    "source": "sensitive_short_151.pdf",
+    "category": "sensitive",
+    "length_category": "short",
+    "word_count": 26,
+    "author": "Michele Harrison",
+    "created_date": "2025-05-03T22:56:14.873037",
+    "page_count": 1,
+    "contains_pii": true,
+    "pii_types": [
+      "name",
+      "email",
+      "phone",
+      "ssn",
+      "dob",
+      "cc_number",
+      "cc_exp",
+      "address"
+    ]
+  }
+}

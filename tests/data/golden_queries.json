@@ -1,0 +1,161 @@
+[
+  {
+    "id": "gq_001",
+    "query": "What is the capital of France?",
+    "expected_answer": "Paris",
+    "expected_docs": [
+      "doc_france_geography",
+      "doc_european_capitals"
+    ],
+    "category": "factual",
+    "difficulty": "easy",
+    "metadata": {
+      "language": "en",
+      "domain": "geography"
+    }
+  },
+  {
+    "id": "gq_002",
+    "query": "Explain the difference between REST and GraphQL APIs",
+    "expected_answer": "REST uses multiple endpoints with fixed data structures, while GraphQL uses a single endpoint with flexible queries",
+    "expected_docs": [
+      "doc_api_comparison",
+      "doc_rest_guide",
+      "doc_graphql_guide"
+    ],
+    "category": "technical",
+    "difficulty": "medium",
+    "metadata": {
+      "language": "en",
+      "domain": "programming"
+    }
+  },
+  {
+    "id": "gq_003",
+    "query": "What are the side effects of metformin?",
+    "expected_answer": "Common side effects include nausea, diarrhea, and stomach upset. Rare but serious side effects include lactic acidosis.",
+    "expected_docs": [
+      "doc_metformin_prescribing",
+      "doc_diabetes_medications"
+    ],
+    "category": "medical",
+    "difficulty": "hard",
+    "metadata": {
+      "language": "en",
+      "domain": "medicine",
+      "requires_citations": true
+    }
+  },
+  {
+    "id": "gq_004",
+    "query": "How do I terminate an employee in California?",
+    "expected_answer": "California is an at-will employment state, but termination must comply with anti-discrimination laws, provide final wages immediately, and follow any contractual obligations.",
+    "expected_docs": [
+      "doc_california_labor_code",
+      "doc_employment_law"
+    ],
+    "category": "legal",
+    "difficulty": "hard",
+    "metadata": {
+      "language": "en",
+      "domain": "law",
+      "jurisdiction": "US-CA"
+    }
+  },
+  {
+    "id": "gq_005",
+    "query": "Write a Python function to reverse a string",
+    "expected_answer": "def reverse_string(s: str) -> str:\n    return s[::-1]",
+    "expected_docs": [
+      "doc_python_string_methods",
+      "doc_python_slicing"
+    ],
+    "category": "code_generation",
+    "difficulty": "easy",
+    "metadata": {
+      "language": "en",
+      "domain": "programming",
+      "programming_language": "python"
+    }
+  },
+  {
+    "id": "gq_006",
+    "query": "Compare the financial performance of Tesla vs Ford in Q4 2023",
+    "expected_answer": "Based on Q4 2023 earnings: Tesla reported $25.2B revenue with 8.2% operating margin, while Ford reported $46B revenue with 5.4% operating margin.",
+    "expected_docs": [
+      "doc_tesla_q4_2023",
+      "doc_ford_q4_2023"
+    ],
+    "category": "analytical",
+    "difficulty": "hard",
+    "metadata": {
+      "language": "en",
+      "domain": "business",
+      "time_sensitive": true
+    }
+  },
+  {
+    "id": "gq_007",
+    "query": "What documents do I need for a UK visa application?",
+    "expected_answer": "Required documents typically include: valid passport, visa application form, recent photograph, proof of finances, travel itinerary, and accommodation details.",
+    "expected_docs": [
+      "doc_uk_visa_requirements",
+      "doc_visa_application_process"
+    ],
+    "category": "procedural",
+    "difficulty": "medium",
+    "metadata": {
+      "language": "en",
+      "domain": "immigration",
+      "country": "UK"
+    }
+  },
+  {
+    "id": "gq_008",
+    "query": "Summarize the key findings of the 2023 IPCC climate report",
+    "expected_answer": "The 2023 IPCC report emphasizes that human-caused climate change is unequivocal, with global temperatures rising 1.1\u00b0C above pre-industrial levels. Urgent action is needed to limit warming to 1.5\u00b0C.",
+    "expected_docs": [
+      "doc_ipcc_2023_report",
+      "doc_climate_science_summary"
+    ],
+    "category": "summarization",
+    "difficulty": "hard",
+    "metadata": {
+      "language": "en",
+      "domain": "science",
+      "requires_synthesis": true
+    }
+  },
+  {
+    "id": "gq_009",
+    "query": "Can you help me debug this error: AttributeError: 'NoneType' object has no attribute 'split'",
+    "expected_answer": "This error occurs when you try to call .split() on a None value. Check that the variable is assigned before use, or add a None check: if value is not None: value.split()",
+    "expected_docs": [
+      "doc_python_common_errors",
+      "doc_debugging_guide"
+    ],
+    "category": "debugging",
+    "difficulty": "medium",
+    "metadata": {
+      "language": "en",
+      "domain": "programming",
+      "error_type": "AttributeError"
+    }
+  },
+  {
+    "id": "gq_010",
+    "query": "What is the policy on remote work in the employee handbook?",
+    "expected_answer": "Employees may work remotely up to 3 days per week with manager approval. Remote workers must maintain core hours of 10 AM - 3 PM in their local timezone.",
+    "expected_docs": [
+      "doc_employee_handbook_2024",
+      "doc_remote_work_policy"
+    ],
+    "category": "policy_lookup",
+    "difficulty": "easy",
+    "metadata": {
+      "language": "en",
+      "domain": "hr",
+      "internal": true
+    }
+  }
+]
