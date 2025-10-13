@@ -38,7 +38,12 @@ class SLMStub:
             return "I don't know based on the provided documents."
         lines = [f"Based on {len(evidence)} pieces of evidence:"]
         for e in evidence[:3]:
-            lines.append(e.get("text", ""))
+            # accept either dict-like or objects with .text
+            if hasattr(e, "get"):
+                text = e.get("text", "")
+            else:
+                text = getattr(e, "text", "")
+            lines.append(text)
         return "\n".join(lines)
 
     async def generate_answer_async(self, query: str, evidence: List[Dict[str, Any]]) -> str:
