@@ -1,0 +1,42 @@
+[
+  {
+    "doc_id": "d1",
+    "text": "Inception was directed by Christopher Nolan."
+  },
+  {
+    "doc_id": "d2",
+    "text": "The movie Inception received awards including Best Cinematography."
+  },
+  {
+    "doc_id": "d3",
+    "text": "Christopher Nolan also directed Memento and The Dark Knight."
+  },
+  {
+    "doc_id": "d4",
+    "text": "The cinematographer for Inception was Wally Pfister."
+  },
+  {
+    "doc_id": "d5",
+    "text": "Dunkirk won several technical awards in 2018."
+  },
+  {
+    "doc_id": "d6",
+    "text": "Interstellar was released in 2014 and features cinematography by Hoyte van Hoytema."
+  },
+  {
+    "doc_id": "g1",
+    "text": "Python is a programming language that emphasizes readability."
+  },
+  {
+    "doc_id": "g2",
+    "text": "FAISS is a library for similarity search and clustering of dense vectors."
+  },
+  {
+    "doc_id": "g3",
+    "text": "Ollama is a local LLM host that can run models via a CLI."
+  },
+  {
+    "doc_id": "custom_0",
+    "text": "Test document from CLI add-doc"
+  }
+]

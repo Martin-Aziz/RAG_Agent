@@ -1,0 +1,11 @@
+{
+  "user_id": "test_user_adv",
+  "preferences": {},
+  "learned_facts": [],
+  "interaction_history": [
+    "test_session_adv"
+  ],
+  "total_queries": 1,
+  "created_at": 1760354188.827539,
+  "updated_at": 1760354188.8296142
+}
