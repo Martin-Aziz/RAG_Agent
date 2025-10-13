@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 import os
 
 app = FastAPI(title="Agentic RAG MVP")
-orch = Orchestrator()
+orch = None
 logger = get_logger()
 
 # mount static web UI
@@ -29,6 +29,26 @@ async def root_html():
     @app.get("/health")
     async def health():
         return {"status": "ok"}
+
+
+    @app.on_event("startup")
+    async def startup_event():
+        # seed the knowledge base so retrievers have data available
+        try:
+            from seeds.seed_data import seed
+            print("Seeding knowledge base at startup...")
+            # run seed synchronously (we're in startup)
+            seed()
+        except Exception as e:
+            print("Warning: seeding failed at startup:", e)
+
+        # initialize orchestrator after seeding so it can load persisted FAISS if present
+        global orch
+        try:
+            orch = Orchestrator()
+            print("Orchestrator initialized")
+        except Exception as e:
+            print("Failed to initialize Orchestrator:", e)
 
 
 @app.post("/query", response_model=QueryResponse)
