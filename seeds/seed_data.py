@@ -71,6 +71,16 @@ def seed():
         except Exception as e:
             print("Warning: failed to persist FAISS index:", e)
 
+    # persist docs to data/docs.json so other processes (Orchestrator) can load them
+    try:
+        os.makedirs("data", exist_ok=True)
+        docs_path = os.path.join("data", "docs.json")
+        with open(docs_path, "w") as df:
+            json.dump(docs, df, indent=2)
+        print(f"Persisted {len(docs)} docs to {docs_path}")
+    except Exception as e:
+        print("Warning: failed to persist docs.json:", e)
+
     print("Seeded docs:", [d["doc_id"] for d in docs])
 
 

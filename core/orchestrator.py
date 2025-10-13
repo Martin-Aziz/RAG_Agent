@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 from api.schemas import QueryRequest, QueryResponse, EvidenceItem, AgentStep
 from core.model_adapters import SLMStub, OllamaAdapter
 import os
+import json
 from core.router import Router
 from core.agents.retriever_vector import VectorRetriever
 from core.agents.retriever_bm25 import BM25Retriever
@@ -47,6 +48,23 @@ class Orchestrator:
         else:
             self.vector = VectorRetriever()
         self.bm25 = BM25Retriever()
+        # attempt to load persisted docs.json to populate retrievers
+        try:
+            docs_path = os.path.join("data", "docs.json")
+            if os.path.exists(docs_path):
+                with open(docs_path) as df:
+                    docs = json.load(df)
+                # index into retrievers (FAISS retriever uses index() method)
+                try:
+                    self.vector.index(docs)
+                except Exception:
+                    pass
+                try:
+                    self.bm25.index(docs)
+                except Exception:
+                    pass
+        except Exception:
+            pass
         self.hoprag = HopRAG(self.vector, self.bm25)
         self.verifier = Verifier()
         self.tools = ToolRegistry()
@@ -104,12 +122,10 @@ class Orchestrator:
             for p in passages:
                 evidence.append(EvidenceItem(doc_id=p["doc_id"], passage_id=p["passage_id"], score=p.get("score", 1.0), text=p.get("text", "")))
             # prefer async interface if available
-            # convert to plain dicts for models expecting simple structures
-            evidence_dicts = [ {"doc_id": e.doc_id, "passage_id": e.passage_id, "score": e.score, "text": e.text} for e in evidence ]
             if hasattr(self.model, "generate_answer_async"):
-                answer = await self.model.generate_answer_async(req.query, evidence_dicts)
+                answer = await self.model.generate_answer_async(req.query, evidence)
             else:
-                answer = self.model.generate_answer(req.query, evidence_dicts)
+                answer = self.model.generate_answer(req.query, evidence)
             return QueryResponse(answer=answer, evidence=evidence, trace=trace, confidence=0.6)
 
         # PAR-RAG execution
@@ -151,12 +167,10 @@ class Orchestrator:
                 evidence.append(EvidenceItem(doc_id=it.get("doc_id", "doc"), passage_id=it.get("passage_id", "p"), score=it.get("score", 1.0), text=it.get("text", "")))
 
         # final synthesis
-        # convert evidence to plain dicts for model consumption
-        evidence_dicts = [ {"doc_id": e.doc_id, "passage_id": e.passage_id, "score": e.score, "text": e.text} for e in evidence ]
         if hasattr(self.model, "generate_answer_async"):
-            answer = await self.model.generate_answer_async(req.query, evidence_dicts)
+            answer = await self.model.generate_answer_async(req.query, evidence)
         else:
-            answer = self.model.generate_answer(req.query, evidence_dicts)
+            answer = self.model.generate_answer(req.query, evidence)
         trace.append(AgentStep(step_id="synth-1", agent="synthesizer", action="synthesize", result={"answer": answer}))
         elapsed = time.time() - start
         trace.append(AgentStep(step_id="meta-1", agent="orchestrator", action="timing", result={"elapsed": elapsed}))
