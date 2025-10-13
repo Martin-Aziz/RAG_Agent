@@ -105,7 +105,11 @@ class OllamaAdapter:
         """Async generator that yields streaming chunks from the Ollama CLI."""
         prompt = f"Answer the user query: {query}\nGiven evidence:\n"
         for e in evidence:
-            prompt += f"- {e.get('text','')}\n"
+            if hasattr(e, "get"):
+                txt = e.get("text", "")
+            else:
+                txt = getattr(e, "text", "")
+            prompt += f"- {txt}\n"
         LLM_CALLS.labels(model=self.model).inc()
         try:
             # run the blocking stream in a thread and yield lines as they come
@@ -136,7 +140,11 @@ class OllamaAdapter:
     async def generate_answer_async(self, query: str, evidence: List[Dict[str, Any]]) -> str:
         prompt = f"Answer the user query: {query}\nGiven evidence:\n"
         for e in evidence:
-            prompt += f"- {e.get('text','')}\n"
+            if hasattr(e, "get"):
+                txt = e.get("text", "")
+            else:
+                txt = getattr(e, "text", "")
+            prompt += f"- {txt}\n"
         LLM_CALLS.labels(model=self.model).inc()
         # prefer streaming if available
         try:
