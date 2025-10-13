@@ -4,6 +4,8 @@ import asyncio
 import subprocess
 import time
 import json
+import re
+from itertools import islice
 try:
     from jsonschema import validate, ValidationError
 except Exception:
@@ -34,26 +36,59 @@ class SLMStub:
     """
 
     def generate_answer(self, query: str, evidence: List[Dict[str, Any]]) -> str:
+        query_lc = (query or "").lower()
+        greetings = {"hello", "hi", "hey", "good morning", "good afternoon", "good evening"}
+        if any(greet in query_lc for greet in greetings):
+            return "Hello! I'm here to help you explore the knowledge base. Feel free to ask me anything about your documents."  # noqa: E501
+
+        friendly_checks = ["how are you", "how's it going", "how are u"]
+        if any(phrase in query_lc for phrase in friendly_checks):
+            return "I'm just code, but I'm ready to help! What would you like to know from the documents?"
+
+        gratitude_phrases = {"thank you", "thanks", "thx", "i appreciate"}
+        if any(token in query_lc for token in gratitude_phrases):
+            return "You're very welcome! Let me know if there's anything else you want to explore."
+
         if not evidence:
-            return "I don't know based on the provided documents."
-        lines = [f"Based on {len(evidence)} pieces of evidence:"]
-        for e in evidence[:3]:
-            # robustly accept dict-like or objects with .text (pydantic models)
+            return "I couldn't find supporting information in the documents. Try rephrasing or adding more context."
+
+        def _extract_text(item: Any) -> str:
             try:
-                # dict-like (plain dict)
-                if isinstance(e, dict):
-                    text = e.get("text", "")
-                else:
-                    # objects (pydantic BaseModel or simple objects)
-                    text = getattr(e, "text", "")
+                if isinstance(item, dict):
+                    return item.get("text", "")
+                return getattr(item, "text", "") if hasattr(item, "text") else str(item)
             except Exception:
-                # fallback to string conversion
-                try:
-                    text = str(e)
-                except Exception:
-                    text = ""
-            lines.append(text)
-        return "\n".join(lines)
+                return ""
+
+        def _normalize_sentence(sentence: str) -> str:
+            cleaned = sentence.strip().lstrip("•-*→")
+            cleaned = re.sub(r"\s+", " ", cleaned)
+            return cleaned
+
+        sentences: List[str] = []
+        seen = set()
+        for item in evidence:
+            text = _extract_text(item)
+            if not text:
+                continue
+            for sentence in re.split(r"(?<=[.!?])\s+", text):
+                normalized = _normalize_sentence(sentence)
+                if normalized and normalized.lower() not in seen:
+                    seen.add(normalized.lower())
+                    sentences.append(normalized)
+
+        if not sentences:
+            return "I found related documents, but they didn't contain readable text."
+
+        summary_parts = list(islice(sentences, 2))
+        summary = " ".join(summary_parts)
+        if summary and summary[-1] not in {".", "!", "?"}:
+            summary += "."
+
+        supporting_bullets = list(islice(sentences, 6))
+        bullet_section = "\n".join(f"• {s}" for s in supporting_bullets)
+
+        return f"{summary}\n\nSupporting evidence:\n{bullet_section}"
 
     async def generate_answer_async(self, query: str, evidence: List[Dict[str, Any]]) -> str:
         # mimic async call

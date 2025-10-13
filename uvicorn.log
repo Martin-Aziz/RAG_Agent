@@ -26,3 +26,17 @@ INFO:     127.0.0.1:56176 - "GET /styles.css HTTP/1.1" 200 OK
 INFO:     127.0.0.1:56177 - "GET /favicon.ico HTTP/1.1" 404 Not Found
 2025-10-13 13:48:53,991 INFO 57024cf0f53a41d8b2001589eff17325 handling request
 INFO:     127.0.0.1:56183 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59903 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59903 - "GET /styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59905 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59905 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+2025-10-13 18:03:47,346 INFO 055d7c2fa0bf4240817c4d3e7a9bea2d handling request
+INFO:     127.0.0.1:59923 - "POST /query HTTP/1.1" 200 OK
+2025-10-13 18:03:55,524 INFO 892b2af16dd2474bae46e305e2ca4051 handling request
+INFO:     127.0.0.1:59928 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60032 - "HEAD / HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:60034 - "GET / HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [54859]

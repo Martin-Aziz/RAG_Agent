@@ -15,6 +15,11 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import json
 import re
 
+try:  # Optional dependency
+    import spacy  # type: ignore
+except ImportError:  # pragma: no cover - optional dependency
+    spacy = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 
@@ -341,12 +346,13 @@ class NERExtractor:
     
     def _load_model(self):
         """Load spaCy model."""
+        if spacy is None:
+            logger.warning("spaCy not installed, NER extraction unavailable")
+            return
+
         try:
-            import spacy
             self.nlp = spacy.load(self.model_name)
             logger.info(f"Loaded spaCy model: {self.model_name}")
-        except ImportError:
-            logger.warning("spaCy not installed, NER extraction unavailable")
         except Exception as e:
             logger.error(f"Failed to load spaCy model: {e}")
     

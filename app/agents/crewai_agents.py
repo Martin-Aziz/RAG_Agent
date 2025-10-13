@@ -8,6 +8,13 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
+try:  # Optional dependency
+    from crewai import Agent as CrewAgent, Crew, Task  # type: ignore
+except ImportError:  # pragma: no cover - optional dependency
+    CrewAgent = None  # type: ignore
+    Crew = None  # type: ignore
+    Task = None  # type: ignore
+
 from .base import Agent, AgentRole, AgentMessage, AgentConfig, AgentSystem
 
 logger = logging.getLogger(__name__)
@@ -31,10 +38,12 @@ class CrewAIAgent(Agent):
     
     def _initialize_crewai(self):
         """Initialize CrewAI agent (if available)."""
+        if CrewAgent is None:
+            logger.warning("CrewAI not installed, using fallback implementation")
+            self.crew_agent = None
+            return
+
         try:
-            # Try to import crewai
-            from crewai import Agent as CrewAgent
-            
             # Create CrewAI agent
             self.crew_agent = CrewAgent(
                 role=self.config.role.value,
@@ -43,12 +52,7 @@ class CrewAIAgent(Agent):
                 verbose=True,
                 allow_delegation=False,
             )
-            
             logger.info(f"Initialized CrewAI agent: {self.name}")
-            
-        except ImportError:
-            logger.warning("CrewAI not installed, using fallback implementation")
-            self.crew_agent = None
         except Exception as e:
             logger.error(f"Failed to initialize CrewAI agent: {e}")
             self.crew_agent = None
@@ -255,9 +259,11 @@ Provide constructive critique.""",
     
     def create_crew(self):
         """Create CrewAI crew (if CrewAI is available)."""
+        if Crew is None or Task is None:
+            logger.warning("CrewAI not available")
+            return
+
         try:
-            from crewai import Crew, Task
-            
             # Create tasks
             tasks = [
                 Task(
@@ -273,17 +279,14 @@ Provide constructive critique.""",
                     agent=self.agents["critic"].crew_agent,
                 ),
             ]
-            
+
             # Create crew
             self.crew = Crew(
                 agents=[a.crew_agent for a in self.agents.values() if a.crew_agent],
                 tasks=tasks,
                 verbose=True,
             )
-            
+
             logger.info("Created CrewAI crew")
-            
-        except ImportError:
-            logger.warning("CrewAI not available")
         except Exception as e:
             logger.error(f"Failed to create crew: {e}")

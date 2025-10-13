@@ -15,6 +15,11 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Set, Tuple
 import json
 
+try:  # Optional dependency
+    from neo4j import GraphDatabase  # type: ignore
+except ImportError:  # pragma: no cover - optional dependency
+    GraphDatabase = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 
@@ -84,15 +89,16 @@ class Neo4jGraphStore:
     
     def _connect(self):
         """Connect to Neo4j."""
+        if GraphDatabase is None:
+            logger.warning("neo4j driver not installed, graph store unavailable")
+            return
+
         try:
-            from neo4j import GraphDatabase
             self.driver = GraphDatabase.driver(
                 self.uri,
                 auth=(self.username, self.password),
             )
             logger.info(f"Connected to Neo4j at {self.uri}")
-        except ImportError:
-            logger.warning("neo4j driver not installed, graph store unavailable")
         except Exception as e:
             logger.error(f"Failed to connect to Neo4j: {e}")
     

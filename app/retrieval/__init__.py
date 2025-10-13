@@ -2,8 +2,6 @@
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 import asyncio
-from rank_bm25 import BM25Okapi
-import numpy as np
 
 
 @dataclass

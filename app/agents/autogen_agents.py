@@ -11,6 +11,11 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
+try:  # Optional dependency
+    import autogen  # type: ignore
+except ImportError:  # pragma: no cover - optional dependency
+    autogen = None  # type: ignore
+
 from .base import Agent, AgentRole, AgentMessage, AgentConfig, AgentSystem
 
 logger = logging.getLogger(__name__)
@@ -34,10 +39,12 @@ class AutoGenAgent(Agent):
     
     def _initialize_autogen(self):
         """Initialize AutoGen agent (if available)."""
+        if autogen is None:
+            logger.warning("AutoGen not installed, using fallback implementation")
+            self.autogen_agent = None
+            return
+
         try:
-            # Try to import autogen
-            import autogen
-            
             # Create AutoGen config
             llm_config = {
                 "model": self.config.model_name,
@@ -54,9 +61,6 @@ class AutoGenAgent(Agent):
             
             logger.info(f"Initialized AutoGen agent: {self.name}")
             
-        except ImportError:
-            logger.warning("AutoGen not installed, using fallback implementation")
-            self.autogen_agent = None
         except Exception as e:
             logger.error(f"Failed to initialize AutoGen agent: {e}")
             self.autogen_agent = None
