@@ -1,0 +1,11 @@
+[
+  {
+    "id": "q1",
+    "query": "Which movie directed by the director of Inception won an Oscar for Best Cinematography?",
+    "answer": "Inception was directed by Christopher Nolan; the movie 'Inception' won Best Cinematography at some awards (stub).",
+    "facts": [
+      {"doc_id": "d1", "text": "Inception was directed by Christopher Nolan."},
+      {"doc_id": "d2", "text": "The movie 'Inception' received awards including Best Cinematography."}
+    ]
+  }
+]
