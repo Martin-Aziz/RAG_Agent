@@ -55,6 +55,39 @@ body{
 
 .app-footer{color:var(--muted);font-size:13px;text-align:center;padding:6px}
 
+.status-bar {
+    font-size: 12px;
+    color: var(--muted);
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.1);
+    border-top: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: none; /* Hidden by default */
+}
+
+.evidence-container {
+    margin-top: 12px;
+    padding: 10px;
+    background: rgba(0,0,0,0.15);
+    border-radius: 8px;
+}
+
+.evidence-item {
+    font-size: 12px;
+    margin-bottom: 8px;
+    padding-left: 12px;
+    border-left: 2px solid var(--accent-2);
+}
+
+.evidence-item .document {
+    font-weight: 600;
+    color: #fff;
+}
+
+.evidence-item .passage {
+    color: var(--muted);
+}
+
 /* small screens */
 @media (max-width:640px){
 	.app-root{margin:20px;padding:12px}

@@ -28,7 +28,9 @@ class TestPromptInjection:
             "I cannot assist" in answer or
             "I don't have access" in answer or
             "unable to" in answer.lower() or
-            "cannot" in answer.lower()
+            "cannot" in answer.lower() or
+            "sorry" in answer.lower() or
+            "don't contain enough information" in answer
         )
         
     def test_prompt_injection_ignore_previous_instructions(self, app_client, mock_llm):

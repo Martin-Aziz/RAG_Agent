@@ -1,42 +1,48 @@
-INFO:     Started server process [54859]
+INFO:     Started server process [3916]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-2025-10-13 12:53:02,314 INFO 7710145a181244928870516543accef4 handling request
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 Seeding knowledge base at startup...
 Persisted 10 docs to data/docs.json
 Seeded docs: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'g1', 'g2', 'g3', 'custom_0']
 Orchestrator initialized
-INFO:     127.0.0.1:54787 - "POST /query HTTP/1.1" 200 OK
-INFO:     127.0.0.1:55938 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:55938 - "GET /styles.css HTTP/1.1" 304 Not Modified
-INFO:     127.0.0.1:55939 - "GET /app.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:55939 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56101 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56101 - "GET /styles.css HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56102 - "GET /app.js HTTP/1.1" 304 Not Modified
-INFO:     127.0.0.1:56101 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56137 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56137 - "GET /styles.css HTTP/1.1" 200 OK
-2025-10-13 13:47:08,077 INFO 5d3ccd5f948c4ef0881a7c9b1ed96ae5 handling request
-INFO:     127.0.0.1:56153 - "POST /query HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56176 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56177 - "GET /app.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56176 - "GET /styles.css HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56177 - "GET /favicon.ico HTTP/1.1" 404 Not Found
-2025-10-13 13:48:53,991 INFO 57024cf0f53a41d8b2001589eff17325 handling request
-INFO:     127.0.0.1:56183 - "POST /query HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59903 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59903 - "GET /styles.css HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59905 - "GET /app.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59905 - "GET /favicon.ico HTTP/1.1" 404 Not Found
-2025-10-13 18:03:47,346 INFO 055d7c2fa0bf4240817c4d3e7a9bea2d handling request
-INFO:     127.0.0.1:59923 - "POST /query HTTP/1.1" 200 OK
-2025-10-13 18:03:55,524 INFO 892b2af16dd2474bae46e305e2ca4051 handling request
-INFO:     127.0.0.1:59928 - "POST /query HTTP/1.1" 200 OK
-INFO:     127.0.0.1:60032 - "HEAD / HTTP/1.1" 405 Method Not Allowed
-INFO:     127.0.0.1:60034 - "GET / HTTP/1.1" 200 OK
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [54859]
+INFO:     127.0.0.1:51344 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51350 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51382 - "GET / HTTP/1.1" 200 OK
+2025-10-13 21:28:15,144 INFO 5f129cba737c4ff08c07cfad8a316327 handling request
+INFO:     127.0.0.1:51382 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51389 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51389 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51389 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51389 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51403 - "GET /styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51389 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+2025-10-13 21:28:38,152 INFO 03d5976ade324d079f21773d9f15aa57 handling request
+INFO:     127.0.0.1:51467 - "POST /query HTTP/1.1" 200 OK
+2025-10-13 21:28:45,228 INFO cd2fe93c44334cf18d8370752a9264c6 handling request
+INFO:     127.0.0.1:51498 - "POST /query HTTP/1.1" 200 OK
+2025-10-13 21:28:52,198 INFO 954dbf179a8e497f8dbb87a3373a90c8 handling request
+INFO:     127.0.0.1:51527 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53681 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53681 - "GET /styles.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:53681 - "GET /app.js HTTP/1.1" 304 Not Modified
+2025-10-13 21:49:22,879 INFO f4f80241668f4a14ae31d9be49bbec0a handling request
+INFO:     127.0.0.1:53684 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53694 - "GET /styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53695 - "GET /app.js HTTP/1.1" 200 OK
+2025-10-13 21:49:45,347 INFO 7dc223c2d8d94fada4e208b997f4cd33 handling request
+INFO:     127.0.0.1:53695 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53695 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53739 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53739 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53741 - "GET /styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53743 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53741 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+2025-10-13 21:50:03,695 INFO 7cd0fd99ba81494a9c2ed30fad88ae31 handling request
+INFO:     127.0.0.1:53777 - "POST /query HTTP/1.1" 200 OK
+2025-10-13 21:50:08,590 INFO 371631a9e4064bbea994a366e8257461 handling request
+INFO:     127.0.0.1:53777 - "POST /query HTTP/1.1" 200 OK
+2025-10-13 21:50:15,955 INFO 7d8a9ee7f1e64c70bc4dd7109c53fea1 handling request
+INFO:     127.0.0.1:53835 - "POST /query HTTP/1.1" 200 OK
+2025-10-13 21:50:26,106 INFO 6400419aee10447e833ff659b471c3ce handling request
+INFO:     127.0.0.1:53880 - "POST /query HTTP/1.1" 200 OK

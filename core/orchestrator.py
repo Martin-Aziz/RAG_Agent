@@ -5,6 +5,7 @@ import asyncio
 import time
 
 from api.schemas import QueryRequest, QueryResponse, EvidenceItem, AgentStep
+from core.prompts import build_generation_prompt
 from core.model_adapters import SLMStub, OllamaAdapter
 from core.router import Router
 from core.agents.retriever_vector import VectorRetriever
@@ -26,6 +27,52 @@ try:
 except ImportError as e:
     print(f"Advanced features not available: {e}")
     ADVANCED_FEATURES_AVAILABLE = False
+
+
+GREETINGS = ["hello", "hi", "hey", "howdy", "greetings", "good morning", "good afternoon", "good evening"]
+
+# Meta questions about the system itself
+META_QUESTIONS = ["who are you", "what are you", "what is your name", "what can you do", 
+                  "which model", "what model", "what llm", "which llm"]
+
+
+def _is_meta_question(query: str) -> bool:
+    """Check if the query is asking about the system itself."""
+    query_lower = query.lower().strip()
+    return any(meta in query_lower for meta in META_QUESTIONS)
+
+
+def _calculate_relevance_score(query: str, evidence: List[Any]) -> float:
+    """Calculate a simple relevance score based on keyword overlap."""
+    if not evidence:
+        return 0.0
+    
+    # Extract key terms from query (basic tokenization)
+    query_terms = set(query.lower().split())
+    # Remove common stop words
+    stop_words = {'the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'but', 'in', 'with', 'to', 'for', 'of', 'do', 'you', 'know', 'who', 'what', 'when', 'where', 'why', 'how'}
+    query_terms = query_terms - stop_words
+    
+    if not query_terms:
+        return 0.5  # Neutral if we can't extract meaningful terms
+    
+    # Check how many query terms appear in evidence
+    max_overlap = 0
+    for item in evidence:
+        text = ""
+        if isinstance(item, dict):
+            text = item.get("text", "")
+        elif hasattr(item, "text"):
+            text = item.text
+        else:
+            text = str(item)
+        
+        text_terms = set(text.lower().split())
+        overlap = len(query_terms.intersection(text_terms))
+        max_overlap = max(max_overlap, overlap)
+    
+    # Return ratio of overlapping terms
+    return min(1.0, max_overlap / len(query_terms))
 
 
 class Orchestrator:
@@ -145,6 +192,16 @@ class Orchestrator:
         except Exception:
             pass
 
+    def _prepare_context_pairs(self, evidence: List[EvidenceItem]) -> List[tuple]:
+        """Convert evidence items into (doc_id, text) tuples for the prompt builder."""
+        pairs = []
+        for item in evidence:
+            doc_label = item.doc_id or "Document"
+            text = (item.text or "").strip()
+            if text:
+                pairs.append((doc_label, text))
+        return pairs
+
     async def plan(self, query: str, mode: str) -> List[Dict[str, Any]]:
         # deterministic stub planner
         if mode == "parrag":
@@ -170,6 +227,24 @@ class Orchestrator:
     async def handle_query(self, req: QueryRequest) -> QueryResponse:
         start = time.time()
         trace: List[AgentStep] = []
+
+        # Handle greetings and trivial queries
+        if req.query.lower().strip() in GREETINGS:
+            return QueryResponse(
+                answer="Hello! I'm here to help you explore the knowledge base. Feel free to ask me anything about your documents.",
+                evidence=[],
+                trace=[AgentStep(step_id="greet-1", agent="orchestrator", action="greeting", result={"decision": "trivial"})],
+                confidence=1.0
+            )
+        
+        # Handle meta questions about the system
+        if _is_meta_question(req.query):
+            return QueryResponse(
+                answer="I'm a document-grounded assistant that can only answer questions based on the provided documents in the knowledge base. I don't have information about myself or the models I use - I can only help you explore the documents you've uploaded.",
+                evidence=[],
+                trace=[AgentStep(step_id="meta-1", agent="orchestrator", action="meta_question", result={"decision": "out_of_scope"})],
+                confidence=1.0
+            )
         
         # Build conversation context if memory enabled
         context_prefix = ""
@@ -204,11 +279,18 @@ class Orchestrator:
                 evidence.append(EvidenceItem(doc_id=p["doc_id"], passage_id=p["passage_id"], score=p.get("score", 1.0), text=p.get("text", "")))
             
             # Generate answer
+            context_pairs = self._prepare_context_pairs(evidence)
             if hasattr(self.model, "generate_answer_async"):
-                answer = await self.model.generate_answer_async(enhanced_query, evidence)
+                raw_answer = await self.model.generate_answer_async(enhanced_query, evidence)
             else:
-                answer = self.model.generate_answer(enhanced_query, evidence)
+                raw_answer = self.model.generate_answer(enhanced_query, evidence)
             
+            try:
+                response_data = json.loads(raw_answer)
+                answer = response_data.get("summary", "Could not parse summary from model response.")
+            except (json.JSONDecodeError, TypeError):
+                answer = raw_answer
+
             # Save to memory
             if self.use_advanced and self.conversation_memory:
                 self.conversation_memory.add_turn(
@@ -296,12 +378,45 @@ class Orchestrator:
                     text=it.get("text", "")
                 ))
         
-        # Generate answer with conversation context
-        if hasattr(self.model, "generate_answer_async"):
-            answer = await self.model.generate_answer_async(enhanced_query, evidence)
-        else:
-            answer = self.model.generate_answer(enhanced_query, evidence)
+        # Check relevance of retrieved evidence to the original query
+        relevance_score = _calculate_relevance_score(req.query, evidence)
+        trace.append(AgentStep(
+            step_id="relevance-1",
+            agent="relevance_checker",
+            action="check_relevance",
+            result={"score": relevance_score}
+        ))
         
+        # If relevance is too low, refuse to answer
+        if relevance_score < 0.3:
+            return QueryResponse(
+                answer="I'm sorry — the provided documents don't contain information about that topic. I can only answer questions based on the documents in the knowledge base.",
+                evidence=[],
+                trace=trace,
+                confidence=0.1
+            )
+        
+        # Generate answer with conversation context
+        context_pairs = self._prepare_context_pairs(evidence)
+        if not context_pairs:
+            return QueryResponse(
+                answer="I'm sorry — the provided documents don't contain enough information to answer that.",
+                evidence=[],
+                trace=trace,
+                confidence=0.5
+            )
+
+        if hasattr(self.model, "generate_answer_async"):
+            raw_answer = await self.model.generate_answer_async(enhanced_query, evidence)
+        else:
+            raw_answer = self.model.generate_answer(enhanced_query, evidence)
+        
+        try:
+            response_data = json.loads(raw_answer)
+            answer = response_data.get("summary", "Could not parse summary from model response.")
+        except (json.JSONDecodeError, TypeError):
+            answer = raw_answer
+
         trace.append(AgentStep(
             step_id="synth-1",
             agent="synthesizer",
@@ -403,12 +518,45 @@ class Orchestrator:
             for it in items:
                 evidence.append(EvidenceItem(doc_id=it.get("doc_id", "doc"), passage_id=it.get("passage_id", "p"), score=it.get("score", 1.0), text=it.get("text", "")))
 
-        # final synthesis
-        if hasattr(self.model, "generate_answer_async"):
-            answer = await self.model.generate_answer_async(enhanced_query, evidence)
-        else:
-            answer = self.model.generate_answer(enhanced_query, evidence)
+        # Check relevance of retrieved evidence to the original query
+        relevance_score = _calculate_relevance_score(req.query, evidence)
+        trace.append(AgentStep(
+            step_id="relevance-1",
+            agent="relevance_checker",
+            action="check_relevance",
+            result={"score": relevance_score}
+        ))
         
+        # If relevance is too low, refuse to answer
+        if relevance_score < 0.3:
+            return QueryResponse(
+                answer="I'm sorry — the provided documents don't contain information about that topic. I can only answer questions based on the documents in the knowledge base.",
+                evidence=[],
+                trace=trace,
+                confidence=0.1
+            )
+
+        # final synthesis
+        context_pairs = self._prepare_context_pairs(evidence)
+        if not context_pairs:
+            return QueryResponse(
+                answer="I'm sorry — the provided documents don't contain enough information to answer that.",
+                evidence=[],
+                trace=trace,
+                confidence=0.5
+            )
+
+        if hasattr(self.model, "generate_answer_async"):
+            raw_answer = await self.model.generate_answer_async(enhanced_query, evidence)
+        else:
+            raw_answer = self.model.generate_answer(enhanced_query, evidence)
+        
+        try:
+            response_data = json.loads(raw_answer)
+            answer = response_data.get("summary", "Could not parse summary from model response.")
+        except (json.JSONDecodeError, TypeError):
+            answer = raw_answer
+
         trace.append(AgentStep(step_id="synth-1", agent="synthesizer", action="synthesize", result={"answer": answer[:100]}))
         
         # Save to memory if advanced features enabled
@@ -422,4 +570,4 @@ class Orchestrator:
         
         elapsed = time.time() - start
         trace.append(AgentStep(step_id="meta-1", agent="orchestrator", action="timing", result={"elapsed": elapsed}))
-        return QueryResponse(answer=answer, evidence=evidence, trace=trace, confidence=0.7)
+        return QueryResponse(answer=answer, evidence=evidence, trace=trace, confidence=0.7 if relevance_score > 0.5 else 0.4)

@@ -5,17 +5,17 @@ from core.observability import get_logger, new_request_id, redact_pii, REQUEST_C
 import uvicorn
 import time
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 import os
 
 app = FastAPI(title="Agentic RAG MVP")
 orch = None
 logger = get_logger()
 
-# mount static web UI
+# mount static web UI once so assets are always available
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "web")
 if os.path.exists(static_dir):
-    app.mount("/static", StaticFiles(directory=os.path.join(static_dir)), name="static")
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 @app.get("/")
@@ -24,6 +24,24 @@ async def root_html():
     if os.path.exists(idx):
         return FileResponse(idx, media_type="text/html")
     return {"status": "ok"}
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    # Return an empty favicon to avoid 404s when browsers request it.
+    return Response(content=b"", media_type="image/x-icon")
+
+
+@app.get("/styles.css", include_in_schema=False)
+async def styles_redirect():
+    # Redirect old cached requests to the /static mount
+    return RedirectResponse(url="/static/styles.css", status_code=301)
+
+
+@app.get("/app.js", include_in_schema=False)
+async def app_js_redirect():
+    # Redirect old cached requests to the /static mount
+    return RedirectResponse(url="/static/app.js", status_code=301)
 
 
 @app.get("/health")
