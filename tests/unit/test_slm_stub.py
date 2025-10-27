@@ -1,3 +1,4 @@
+import json
 import pytest
 
 from core.model_adapters import SLMStub
@@ -36,11 +37,11 @@ def test_generate_answer_deduplicates_sentences(stub):
 
     reply = stub.generate_answer("Tell me about Paris", evidence=evidence)
 
-    # Updated to check for the new structured format with "Summary", "Reasoning", "Supporting Evidence", "Conclusion"
-    assert "Summary:" in reply
-    assert "Reasoning" in reply or "Supporting Evidence" in reply
-    # The answer should mention Paris facts with document references
-    assert "Paris" in reply
+    payload = json.loads(reply)
+    assert "summary" in payload
+    assert "structured_response" in payload
+    assert any("Paris" in citation.get("passage", "") for citation in payload.get("citations", []))
+    assert "Paris" in payload["structured_response"]
 
 
 def test_rewrite_query_lowercases(stub):

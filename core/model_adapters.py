@@ -46,7 +46,15 @@ class SLMStub:
     }
 
     def _is_greeting(self, query_lc: str) -> bool:
-        return any(greet in query_lc for greet in self._GREETINGS)
+        tokens = query_lc.replace("?", " ").replace("!", " ").split()
+        lowered_tokens = set(tokens)
+        for greet in self._GREETINGS:
+            if " " in greet:
+                if greet in query_lc:
+                    return True
+            elif greet in lowered_tokens:
+                return True
+        return False
 
     def _is_friendly_check(self, query_lc: str) -> bool:
         return any(phrase in query_lc for phrase in self._FRIENDLY_CHECKS)
@@ -123,35 +131,203 @@ class SLMStub:
 
         return summary, reasoning[:5], supporting[:5]
 
-    def generate_answer(self, query: str, evidence: List[Dict[str, Any]]) -> str:
+    def _shorten(self, text: str, limit: int = 160) -> str:
+        if len(text) <= limit:
+            return text
+        return text[: limit - 1].rstrip() + "…"
+
+    def _infer_follow_up(self, query: str) -> str:
+        query_lc = query.lower()
+        if any(keyword in query_lc for keyword in ["install", "setup", "set up", "configure", "deploy"]):
+            return "Would you like a verification checklist or sample configuration?"
+        if any(keyword in query_lc for keyword in ["learn", "understand", "concept", "theory", "explain"]):
+            return "Should we dive deeper into the underlying theory?"
+        return "Do you want me to suggest a follow-up task or example?"
+
+    def _infer_expertise(self, query: str) -> str:
+        query_lc = query.lower()
+        if any(phrase in query_lc for phrase in ["i'm new", "beginner", "step by step", "explain like", "eli5", "walk me through"]):
+            return "beginner"
+        if any(phrase in query_lc for phrase in ["advanced", "production", "optimize", "deep dive", "architecture"]):
+            return "advanced"
+        return "intermediate"
+
+    def _infer_prerequisites_flag(self, query: str, existing_state: Optional[Dict[str, Any]]) -> str:
+        query_lc = query.lower()
+        if any(keyword in query_lc for keyword in ["install", "setup", "set up", "configure", "deploy"]):
+            return "needs_confirmation"
+        if any(keyword in query_lc for keyword in ["already", "have", "installed", "configured"]):
+            return "likely_met"
+        if existing_state and existing_state.get("prerequisites_met"):
+            return str(existing_state.get("prerequisites_met"))
+        return "unknown"
+
+    def _compose_state_update(
+        self,
+        query: str,
+        teaching_state: Optional[Dict[str, Any]],
+        follow_up: str,
+        step_count: int,
+        prerequisites_flag: str,
+    ) -> Dict[str, Any]:
+        state = dict(teaching_state or {})
+        if not state.get("user_goal"):
+            state["user_goal"] = query.strip() or "Clarify request"
+        if not state.get("expertise"):
+            state["expertise"] = self._infer_expertise(query)
+        state["current_step"] = f"Providing guidance with {step_count} step(s) prepared"
+        state["prerequisites_met"] = prerequisites_flag
+        state["next_suggestion"] = follow_up
+        return state
+
+    def generate_answer(
+        self,
+        query: str,
+        evidence: List[Dict[str, Any]],
+        teaching_state: Optional[Dict[str, Any]] = None,
+    ) -> str:
         query_lc = (query or "").lower()
 
         if self._is_greeting(query_lc):
             return json.dumps({
                 "summary": "Hello! I'm here to help you explore the knowledge base. Let me know what you'd like to learn from the provided documents.",
-                "evidence": []
+                "structured_response": "✅ Requirements\n- Let me know the topic you want to cover.\n\n🧩 Steps\n1. Share a document-backed question.\n\n💡 Tips or common pitfalls\n- Ask about topics present in the knowledge base so I can cite them.\n\n📘 Optional theory\n- None this time.\n\n🤖 Follow-up\n- Would you like suggestions on topics to explore?\n\n📍 State\n- user_goal: greeting\n- current_step: awaiting user question\n- prerequisites_met: unknown\n- next_suggestion: explore documents",
+                "citations": [],
+                "teaching_state": self._compose_state_update(
+                    query,
+                    teaching_state,
+                    "Would you like suggestions on topics to explore?",
+                    step_count=0,
+                    prerequisites_flag=self._infer_prerequisites_flag(query, teaching_state),
+                ),
+                "follow_up": "Would you like suggestions on topics to explore?"
             })
 
         if self._is_friendly_check(query_lc):
             return json.dumps({
                 "summary": "I'm just code, but I'm ready to help! What would you like to know from the documents?",
-                "evidence": []
+                "structured_response": "✅ Requirements\n- Tell me the document-backed task you want to tackle.\n\n🧩 Steps\n1. Ask your next question.\n\n💡 Tips or common pitfalls\n- Mention what you have already tried so we can tailor the guidance.\n\n📘 Optional theory\n- None this time.\n\n🤖 Follow-up\n- Do you want me to suggest a specific topic to review?\n\n📍 State\n- user_goal: friendly check-in\n- current_step: awaiting next query\n- prerequisites_met: unknown\n- next_suggestion: suggest topic",
+                "citations": [],
+                "teaching_state": self._compose_state_update(
+                    query,
+                    teaching_state,
+                    "Do you want me to suggest a specific topic to review?",
+                    step_count=0,
+                    prerequisites_flag=self._infer_prerequisites_flag(query, teaching_state),
+                ),
+                "follow_up": "Do you want me to suggest a specific topic to review?"
             })
 
         if self._is_gratitude(query_lc):
             return json.dumps({
                 "summary": "You're very welcome! Let me know if there's anything else you want to explore in the documents.",
-                "evidence": []
+                "structured_response": "✅ Requirements\n- Decide what you would like to learn next.\n\n🧩 Steps\n1. Share your follow-up question.\n\n💡 Tips or common pitfalls\n- Let me know if you need more depth or a recap.\n\n📘 Optional theory\n- None this time.\n\n🤖 Follow-up\n- Would you like me to recap the key documents again?\n\n📍 State\n- user_goal: continue learning\n- current_step: awaiting next topic\n- prerequisites_met: unknown\n- next_suggestion: recap documents",
+                "citations": [],
+                "teaching_state": self._compose_state_update(
+                    query,
+                    teaching_state,
+                    "Would you like me to recap the key documents again?",
+                    step_count=0,
+                    prerequisites_flag=self._infer_prerequisites_flag(query, teaching_state),
+                ),
+                "follow_up": "Would you like me to recap the key documents again?"
             })
 
         normalised = self._normalize_evidence(evidence)
+        prerequisites_flag = self._infer_prerequisites_flag(query, teaching_state)
+        follow_up = self._infer_follow_up(query)
+
         if not normalised:
+            structured = (
+                "✅ Requirements\n"
+                "- I could not locate supporting material in the knowledge base.\n\n"
+                "🧩 Steps\n"
+                "1. Provide more details or add documents covering this topic.\n\n"
+                "💡 Tips or common pitfalls\n"
+                "- Ensure the knowledge base contains the required references before retrying.\n\n"
+                "📘 Optional theory\n"
+                "- None available without supporting sources.\n\n"
+                "🤖 Follow-up\n"
+                f"- {follow_up}\n\n"
+                "📍 State\n"
+                f"- user_goal: {(teaching_state or {}).get('user_goal', query.strip() or 'clarify topic')}\n"
+                "- current_step: awaiting additional context\n"
+                f"- prerequisites_met: {prerequisites_flag}\n"
+                f"- next_suggestion: {follow_up}"
+            )
             return json.dumps({
                 "summary": "I'm sorry — the provided documents don't contain enough information to answer that.",
-                "evidence": []
-            })
+                "structured_response": structured,
+                "citations": [],
+                "teaching_state": self._compose_state_update(
+                    query,
+                    teaching_state,
+                    follow_up,
+                    step_count=0,
+                    prerequisites_flag=prerequisites_flag,
+                ),
+                "follow_up": follow_up,
+            }, indent=2)
 
-        summary, _, _ = self._summarize_sentences(normalised)
+        summary, reasoning, supporting = self._summarize_sentences(normalised)
+
+        def _build_section_lines(items: Sequence[Dict[str, Any]], formatter) -> List[str]:
+            lines: List[str] = []
+            for idx, item in enumerate(items, start=1):
+                line = formatter(idx, item)
+                if line:
+                    lines.append(line)
+            return lines
+
+        requirements_lines = _build_section_lines(normalised[:2], lambda idx, item: (
+            f"- Ensure you can access: {self._shorten(self._normalize_sentence(item['text']))} [{item.get('doc_id', 'doc')}]"
+        ))
+        if not requirements_lines:
+            requirements_lines.append("- Confirm you have the necessary tools referenced in the cited documents.")
+
+        steps_lines = _build_section_lines(normalised[:4], lambda idx, item: (
+            f"{idx}. {self._shorten(self._normalize_sentence(item['text']))} [{item.get('doc_id', 'doc')}]"
+        ))
+        if not steps_lines:
+            steps_lines.append("1. Review the cited documents for actionable steps.")
+
+        tips_lines = [
+            "- Cross-reference each step with the cited document to avoid misconfigurations."
+        ]
+        expertise_level = (teaching_state or {}).get("expertise") or self._infer_expertise(query)
+        if expertise_level == "beginner":
+            tips_lines.append("- Quick check: Which document explains the prerequisites mentioned above?")
+        elif expertise_level == "advanced":
+            tips_lines.append("- Consider automating these steps or integrating them into your pipeline if applicable.")
+
+        optional_theory_lines = supporting[:2] if supporting else [
+            "- No additional theory was found in the current context."
+        ]
+
+        structured_sections = [
+            "✅ Requirements",
+            "\n".join(requirements_lines),
+            "",
+            "🧩 Steps",
+            "\n".join(steps_lines),
+            "",
+            "💡 Tips or common pitfalls",
+            "\n".join(tips_lines),
+            "",
+            "📘 Optional theory",
+            "\n".join(optional_theory_lines),
+            "",
+            "🤖 Follow-up",
+            f"- {follow_up}",
+            "",
+            "📍 State",
+            f"- user_goal: {(teaching_state or {}).get('user_goal', query.strip() or 'clarify topic')}",
+            "- current_step: outlining guidance",
+            f"- prerequisites_met: {prerequisites_flag}",
+            f"- next_suggestion: {follow_up}",
+        ]
+
+        structured_response = "\n".join(section for section in structured_sections if section is not None)
         
         evidence_list = []
         for item in normalised:
@@ -160,14 +336,30 @@ class SLMStub:
                 "passage": item.get("text", "")
             })
 
+        updated_state = self._compose_state_update(
+            query,
+            teaching_state,
+            follow_up,
+            step_count=len(steps_lines),
+            prerequisites_flag=prerequisites_flag,
+        )
+
         response = {
             "summary": summary,
-            "evidence": evidence_list
+            "structured_response": structured_response,
+            "citations": evidence_list,
+            "teaching_state": updated_state,
+            "follow_up": follow_up,
         }
         return json.dumps(response, indent=2)
 
-    async def generate_answer_async(self, query: str, evidence: List[Dict[str, Any]]) -> str:
-        return self.generate_answer(query, evidence)
+    async def generate_answer_async(
+        self,
+        query: str,
+        evidence: List[Dict[str, Any]],
+        teaching_state: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        return self.generate_answer(query, evidence, teaching_state)
 
     def rewrite_query(self, query: str) -> str:
         if not query:
@@ -231,9 +423,14 @@ class OllamaAdapter:
             pairs.append((label, text))
         return pairs
 
-    def _build_generation_prompt(self, query: str, evidence: Sequence[Any]) -> Tuple[str, List[Tuple[str, str]]]:
+    def _build_generation_prompt(
+        self,
+        query: str,
+        evidence: Sequence[Any],
+        teaching_state: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[str, List[Tuple[str, str]]]:
         context_pairs = self._prepare_context_pairs(evidence)
-        prompt = build_generation_prompt(query, context_pairs)
+        prompt = build_generation_prompt(query, context_pairs, teaching_state=teaching_state)
         return prompt, context_pairs
 
     def _run_cli(self, prompt: str) -> str:
@@ -261,9 +458,14 @@ class OllamaAdapter:
             yield line
         p.wait()
 
-    async def generate_answer_stream(self, query: str, evidence: List[Dict[str, Any]]):
+    async def generate_answer_stream(
+        self,
+        query: str,
+        evidence: List[Dict[str, Any]],
+        teaching_state: Optional[Dict[str, Any]] = None,
+    ):
         """Async generator that yields streaming chunks from the Ollama CLI."""
-        prompt, context_pairs = self._build_generation_prompt(query, evidence)
+        prompt, context_pairs = self._build_generation_prompt(query, evidence, teaching_state=teaching_state)
         if not context_pairs:
             yield "I'm sorry — the provided documents don't contain enough information to answer that."
             return
@@ -294,8 +496,13 @@ class OllamaAdapter:
             text = await asyncio.to_thread(self._run_cli, prompt)
             yield text
 
-    async def generate_answer_async(self, query: str, evidence: List[Dict[str, Any]]) -> str:
-        prompt, context_pairs = self._build_generation_prompt(query, evidence)
+    async def generate_answer_async(
+        self,
+        query: str,
+        evidence: List[Dict[str, Any]],
+        teaching_state: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        prompt, context_pairs = self._build_generation_prompt(query, evidence, teaching_state=teaching_state)
         if not context_pairs:
             return "I'm sorry — the provided documents don't contain enough information to answer that."
         LLM_CALLS.labels(model=self.model).inc()

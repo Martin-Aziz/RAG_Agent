@@ -131,6 +131,7 @@ class Orchestrator:
         self.verifier = Verifier()
         self.tools = ToolRegistry()
         self.memory = MemoryAgent()
+        self.session_states = {}
 
         # Initialize advanced features if available
         self.use_advanced = os.getenv("USE_ADVANCED_RAG", "0") == "1" and ADVANCED_FEATURES_AVAILABLE
@@ -227,9 +228,15 @@ class Orchestrator:
     async def handle_query(self, req: QueryRequest) -> QueryResponse:
         start = time.time()
         trace: List[AgentStep] = []
+        state = self._ensure_session_state(req.session_id, req.user_id)
+        self._update_state_from_query(state, req.query)
 
         # Handle greetings and trivial queries
         if req.query.lower().strip() in GREETINGS:
+            state["current_step"] = "greeting"
+            state["next_suggestion"] = "invite question"
+            if state.get("history"):
+                state["history"][-1]["answer"] = "Greeting acknowledged"
             return QueryResponse(
                 answer="Hello! I'm here to help you explore the knowledge base. Feel free to ask me anything about your documents.",
                 evidence=[],
@@ -239,6 +246,9 @@ class Orchestrator:
         
         # Handle meta questions about the system
         if _is_meta_question(req.query):
+            state["current_step"] = "answering meta question"
+            if state.get("history"):
+                state["history"][-1]["answer"] = "Provided system description"
             return QueryResponse(
                 answer="I'm a document-grounded assistant that can only answer questions based on the provided documents in the knowledge base. I don't have information about myself or the models I use - I can only help you explore the documents you've uploaded.",
                 evidence=[],
@@ -267,6 +277,7 @@ class Orchestrator:
         
         plan = await self.plan(req.query, req.mode)
         trace.append(AgentStep(step_id="planner-1", agent="planner", action="plan", result={"plan": plan}))
+        state["current_step"] = f"retrieval planning ({len(plan)} step(s))"
 
         evidence = []
         
@@ -280,16 +291,26 @@ class Orchestrator:
             
             # Generate answer
             context_pairs = self._prepare_context_pairs(evidence)
+            prompt_state = self._build_state_for_prompt(state)
             if hasattr(self.model, "generate_answer_async"):
-                raw_answer = await self.model.generate_answer_async(enhanced_query, evidence)
+                raw_answer = await self.model.generate_answer_async(enhanced_query, evidence, teaching_state=prompt_state)
             else:
-                raw_answer = self.model.generate_answer(enhanced_query, evidence)
-            
+                raw_answer = self.model.generate_answer(enhanced_query, evidence, teaching_state=prompt_state)
+
+            answer = raw_answer
+            follow_up = None
             try:
                 response_data = json.loads(raw_answer)
-                answer = response_data.get("summary", "Could not parse summary from model response.")
+                answer = response_data.get("structured_response") or response_data.get("summary", "Could not parse summary from model response.")
+                follow_up = response_data.get("follow_up")
+                self._merge_teaching_state(state, response_data.get("teaching_state", {}))
             except (json.JSONDecodeError, TypeError):
-                answer = raw_answer
+                pass
+            state["current_step"] = "awaiting user feedback"
+            if state.get("history"):
+                state["history"][-1]["answer"] = answer
+            if follow_up:
+                state["next_suggestion"] = follow_up
 
             # Save to memory
             if self.use_advanced and self.conversation_memory:
@@ -304,10 +325,10 @@ class Orchestrator:
 
         # Advanced PAR-RAG execution with new features
         if self.use_advanced and self.hybrid_retriever and req.mode == "parrag":
-            return await self._handle_advanced_parrag(req, enhanced_query, plan, trace, start)
+            return await self._handle_advanced_parrag(req, enhanced_query, plan, trace, start, state)
         
         # Traditional PAR-RAG execution (fallback)
-        return await self._handle_traditional_parrag(req, enhanced_query, plan, trace, start)
+        return await self._handle_traditional_parrag(req, enhanced_query, plan, trace, start, state)
     
     async def _handle_advanced_parrag(
         self,
@@ -315,10 +336,12 @@ class Orchestrator:
         enhanced_query: str,
         plan: List[Dict[str, Any]],
         trace: List[AgentStep],
-        start: float
+        start: float,
+        state: Dict[str, Any],
     ) -> QueryResponse:
         """Advanced PAR-RAG with hybrid search, reranking, and self-RAG."""
         evidence = []
+        state["current_step"] = f"retrieving evidence ({len(plan)} planned step(s))"
         
         for step in plan:
             step_id = step.get("id", f"step-{len(trace)+1}")
@@ -389,6 +412,10 @@ class Orchestrator:
         
         # If relevance is too low, refuse to answer
         if relevance_score < 0.3:
+            state["current_step"] = "awaiting more context"
+            state["next_suggestion"] = "provide additional details"
+            if state.get("history"):
+                state["history"][-1]["answer"] = "Insufficient relevant evidence"
             return QueryResponse(
                 answer="I'm sorry — the provided documents don't contain information about that topic. I can only answer questions based on the documents in the knowledge base.",
                 evidence=[],
@@ -399,6 +426,10 @@ class Orchestrator:
         # Generate answer with conversation context
         context_pairs = self._prepare_context_pairs(evidence)
         if not context_pairs:
+            state["current_step"] = "awaiting more context"
+            state["next_suggestion"] = "share related documents"
+            if state.get("history"):
+                state["history"][-1]["answer"] = "No supporting passages retrieved"
             return QueryResponse(
                 answer="I'm sorry — the provided documents don't contain enough information to answer that.",
                 evidence=[],
@@ -406,16 +437,26 @@ class Orchestrator:
                 confidence=0.5
             )
 
+        prompt_state = self._build_state_for_prompt(state)
         if hasattr(self.model, "generate_answer_async"):
-            raw_answer = await self.model.generate_answer_async(enhanced_query, evidence)
+            raw_answer = await self.model.generate_answer_async(enhanced_query, evidence, teaching_state=prompt_state)
         else:
-            raw_answer = self.model.generate_answer(enhanced_query, evidence)
-        
+            raw_answer = self.model.generate_answer(enhanced_query, evidence, teaching_state=prompt_state)
+
+        answer = raw_answer
+        follow_up = None
         try:
             response_data = json.loads(raw_answer)
-            answer = response_data.get("summary", "Could not parse summary from model response.")
+            answer = response_data.get("structured_response") or response_data.get("summary", "Could not parse summary from model response.")
+            follow_up = response_data.get("follow_up")
+            self._merge_teaching_state(state, response_data.get("teaching_state", {}))
         except (json.JSONDecodeError, TypeError):
-            answer = raw_answer
+            pass
+        state["current_step"] = "awaiting user feedback"
+        if state.get("history"):
+            state["history"][-1]["answer"] = answer
+        if follow_up:
+            state["next_suggestion"] = follow_up
 
         trace.append(AgentStep(
             step_id="synth-1",
@@ -476,10 +517,12 @@ class Orchestrator:
         enhanced_query: str,
         plan: List[Dict[str, Any]],
         trace: List[AgentStep],
-        start: float
+        start: float,
+        state: Dict[str, Any],
     ) -> QueryResponse:
         """Traditional PAR-RAG execution (original implementation)."""
         evidence = []
+        state["current_step"] = f"retrieving evidence ({len(plan)} planned step(s))"
         
         for step in plan:
             step_id = step.get("id", f"step-{len(trace)+1}")
@@ -529,6 +572,10 @@ class Orchestrator:
         
         # If relevance is too low, refuse to answer
         if relevance_score < 0.3:
+            state["current_step"] = "awaiting more context"
+            state["next_suggestion"] = "provide additional details"
+            if state.get("history"):
+                state["history"][-1]["answer"] = "Insufficient relevant evidence"
             return QueryResponse(
                 answer="I'm sorry — the provided documents don't contain information about that topic. I can only answer questions based on the documents in the knowledge base.",
                 evidence=[],
@@ -539,6 +586,10 @@ class Orchestrator:
         # final synthesis
         context_pairs = self._prepare_context_pairs(evidence)
         if not context_pairs:
+            state["current_step"] = "awaiting more context"
+            state["next_suggestion"] = "share related documents"
+            if state.get("history"):
+                state["history"][-1]["answer"] = "No supporting passages retrieved"
             return QueryResponse(
                 answer="I'm sorry — the provided documents don't contain enough information to answer that.",
                 evidence=[],
@@ -546,16 +597,26 @@ class Orchestrator:
                 confidence=0.5
             )
 
+        prompt_state = self._build_state_for_prompt(state)
         if hasattr(self.model, "generate_answer_async"):
-            raw_answer = await self.model.generate_answer_async(enhanced_query, evidence)
+            raw_answer = await self.model.generate_answer_async(enhanced_query, evidence, teaching_state=prompt_state)
         else:
-            raw_answer = self.model.generate_answer(enhanced_query, evidence)
-        
+            raw_answer = self.model.generate_answer(enhanced_query, evidence, teaching_state=prompt_state)
+
+        answer = raw_answer
+        follow_up = None
         try:
             response_data = json.loads(raw_answer)
-            answer = response_data.get("summary", "Could not parse summary from model response.")
+            answer = response_data.get("structured_response") or response_data.get("summary", "Could not parse summary from model response.")
+            follow_up = response_data.get("follow_up")
+            self._merge_teaching_state(state, response_data.get("teaching_state", {}))
         except (json.JSONDecodeError, TypeError):
-            answer = raw_answer
+            pass
+        state["current_step"] = "awaiting user feedback"
+        if state.get("history"):
+            state["history"][-1]["answer"] = answer
+        if follow_up:
+            state["next_suggestion"] = follow_up
 
         trace.append(AgentStep(step_id="synth-1", agent="synthesizer", action="synthesize", result={"answer": answer[:100]}))
         
@@ -571,3 +632,64 @@ class Orchestrator:
         elapsed = time.time() - start
         trace.append(AgentStep(step_id="meta-1", agent="orchestrator", action="timing", result={"elapsed": elapsed}))
         return QueryResponse(answer=answer, evidence=evidence, trace=trace, confidence=0.7 if relevance_score > 0.5 else 0.4)
+
+    def _ensure_session_state(self, session_id: str, user_id: str) -> Dict[str, Any]:
+        key = (session_id, user_id)
+        if key not in self.session_states:
+            self.session_states[key] = {
+                "user_goal": None,
+                "current_step": "initializing",
+                "prerequisites_met": "unknown",
+                "next_suggestion": "offer follow-up",
+                "expertise": "intermediate",
+                "history": [],
+            }
+        return self.session_states[key]
+
+    @staticmethod
+    def _infer_prerequisites_flag(query: str, state: Dict[str, Any]) -> str:
+        lowered = query.lower()
+        if any(token in lowered for token in ["install", "setup", "set up", "configure", "deploy"]):
+            return "needs_confirmation"
+        if any(token in lowered for token in ["already", "have", "installed", "configured", "done"]):
+            return "likely_met"
+        return state.get("prerequisites_met", "unknown")
+
+    @staticmethod
+    def _infer_expertise_level(query: str, state: Dict[str, Any]) -> str:
+        lowered = query.lower()
+        if any(phrase in lowered for phrase in ["i'm new", "beginner", "step by step", "explain like", "eli5", "walk me through"]):
+            return "beginner"
+        if any(phrase in lowered for phrase in ["advanced", "production", "optimize", "deep dive", "architecture"]):
+            return "advanced"
+        return state.get("expertise", "intermediate")
+
+    def _update_state_from_query(self, state: Dict[str, Any], query: str) -> None:
+        state.setdefault("history", []).append({
+            "query": query,
+            "timestamp": time.time(),
+        })
+        if not state.get("user_goal"):
+            state["user_goal"] = query.strip()
+        state["expertise"] = self._infer_expertise_level(query, state)
+        state["prerequisites_met"] = self._infer_prerequisites_flag(query, state)
+        state.setdefault("next_suggestion", "offer follow-up")
+        state["current_step"] = "planning response"
+
+    @staticmethod
+    def _build_state_for_prompt(state: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "user_goal": state.get("user_goal") or "(pending)",
+            "current_step": state.get("current_step") or "planning response",
+            "prerequisites_met": state.get("prerequisites_met", "unknown"),
+            "next_suggestion": state.get("next_suggestion") or "offer follow-up",
+            "expertise": state.get("expertise", "intermediate"),
+        }
+
+    def _merge_teaching_state(self, state: Dict[str, Any], update: Dict[str, Any]) -> None:
+        if not update:
+            return
+        for key in ["user_goal", "current_step", "prerequisites_met", "next_suggestion", "expertise"]:
+            value = update.get(key)
+            if value:
+                state[key] = value
