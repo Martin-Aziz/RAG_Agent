@@ -5,8 +5,15 @@ import subprocess
 import time
 import json
 import re
+import logging
 from .observability import LLM_CALLS
 from .prompts import build_generation_prompt, RETRIEVAL_PROMPT
+from .exceptions import ModelException, ResponseParsingException, ModelUnavailableException, ServiceTimeoutException
+from .caching import cached, query_cache, embedding_cache
+
+# Configure logger
+logger = logging.getLogger(__name__)
+
 try:
     from jsonschema import validate, ValidationError
 except Exception:

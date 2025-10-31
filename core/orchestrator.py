@@ -3,6 +3,7 @@ import os
 import json
 import asyncio
 import time
+import logging
 
 from api.schemas import QueryRequest, QueryResponse, EvidenceItem, AgentStep
 from core.prompts import build_generation_prompt
@@ -16,6 +17,15 @@ from core.agents.tool_agent import ToolRegistry
 from core.agents.memory_agent import MemoryAgent
 from core.agents.retriever_faiss import FAISSRetriever
 from core.embedders.ollama_embedder import OllamaEmbedder
+from core.exceptions import (
+    EmptyRetrievalException,
+    InvalidModeException,
+    OrchestrationException
+)
+from core.caching import cached, retrieval_cache
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 # Import new advanced capabilities
 try:
