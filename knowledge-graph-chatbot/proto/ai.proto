@@ -1,0 +1,122 @@
+// ai.proto — AI Pipeline service definition.
+// Implements NLP extraction, embedding generation, and RAG chat.
+// Served by the Python ai-pipeline on port 50052.
+
+syntax = "proto3";
+package kgchat;
+
+option go_package = "github.com/kgchat/proto;proto";
+
+import "common.proto";
+
+// ============================================================================
+// SERVICE DEFINITION
+// ============================================================================
+
+// AIService provides document processing, entity extraction, embedding,
+// and conversational RAG inference grounded in the knowledge graph.
+service AIService {
+  // IngestDocument processes a document through the full NLP pipeline:
+  // chunking → NER → relation extraction → embedding → graph storage.
+  // Streams progress updates for each pipeline stage.
+  rpc IngestDocument(IngestRequest) returns (stream IngestProgress);
+
+  // Chat performs graph-grounded RAG inference and streams tokens.
+  // Flow: embed query → vector search → subgraph expansion →
+  //       prompt construction → LLM streaming → citation extraction.
+  rpc Chat(ChatRequest) returns (stream ChatToken);
+
+  // GenerateEmbedding produces a 384-dim vector for input text.
+  // Uses sentence-transformers/all-MiniLM-L6-v2.
+  rpc GenerateEmbedding(EmbedRequest) returns (EmbedResponse);
+
+  // ExtractEntities runs NER + relation extraction on input text.
+  // Returns structured entities and relations without storing them.
+  rpc ExtractEntities(ExtractRequest) returns (ExtractResponse);
+}
+
+// ============================================================================
+// INGEST MESSAGES
+// ============================================================================
+
+// IngestRequest contains a document to process through the NLP pipeline.
+message IngestRequest {
+  string document_id = 1;     // Unique document identifier
+  string content = 2;         // Raw text content to process
+  string title = 3;           // Document title for metadata
+  string source_url = 4;      // Optional: source URL for provenance
+  map<string, string> metadata = 5;  // Arbitrary document metadata
+}
+
+// ============================================================================
+// CHAT MESSAGES
+// ============================================================================
+
+// ChatRequest initiates a graph-grounded conversational turn.
+message ChatRequest {
+  string session_id = 1;              // Session UUID for conversation tracking
+  string message = 2;                 // User's question or message
+  repeated ChatMessage history = 3;   // Previous conversation turns
+  ChatOptions options = 4;            // Generation configuration
+}
+
+// ============================================================================
+// EMBEDDING MESSAGES
+// ============================================================================
+
+// EmbedRequest contains text(s) to embed.
+message EmbedRequest {
+  repeated string texts = 1;  // One or more texts to embed
+  string model = 2;           // Model override (default: MiniLM-L6-v2)
+}
+
+// EmbedResponse contains the generated embeddings.
+message EmbedResponse {
+  repeated Embedding embeddings = 1;
+  float inference_time_ms = 2;
+}
+
+// Embedding wraps a single vector with its source text reference.
+message Embedding {
+  repeated float vector = 1;  // 384-dim float vector
+  int32 dimensions = 2;       // Vector dimensionality (always 384)
+  string source_text = 3;     // Original text that was embedded
+}
+
+// ============================================================================
+// EXTRACTION MESSAGES
+// ============================================================================
+
+// ExtractRequest contains text to analyze for entities and relations.
+message ExtractRequest {
+  string text = 1;
+  string document_id = 2;  // Optional: for provenance tracking
+}
+
+// ExtractResponse contains the extracted knowledge graph elements.
+message ExtractResponse {
+  repeated ExtractedEntity entities = 1;
+  repeated ExtractedRelation relations = 2;
+  float extraction_time_ms = 3;
+}
+
+// ExtractedEntity is a named entity found by NER.
+message ExtractedEntity {
+  string id = 1;            // Generated UUID
+  string text = 2;          // Entity surface form
+  string label = 3;         // NER label (PERSON, ORG, CVE, etc.)
+  int32 start_char = 4;     // Character offset start
+  int32 end_char = 5;       // Character offset end
+  float confidence = 6;     // NER confidence [0.0, 1.0]
+}
+
+// ExtractedRelation is a subject-predicate-object triple.
+message ExtractedRelation {
+  string head_text = 1;       // Subject entity text
+  string head_label = 2;      // Subject entity type
+  string relation = 3;        // Predicate label (EXPLOITS, AFFECTS, etc.)
+  string tail_text = 4;       // Object entity text
+  string tail_label = 5;      // Object entity type
+  float confidence = 6;       // Extraction confidence [0.0, 1.0]
+  string source_sentence = 7; // Originating sentence for provenance
+}

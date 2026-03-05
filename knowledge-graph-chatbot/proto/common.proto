@@ -1,0 +1,143 @@
+// common.proto — Shared types for Knowledge Graph Chatbot services.
+// All services import this for consistent type definitions across the polyglot stack.
+
+syntax = "proto3";
+package kgchat;
+
+option go_package = "github.com/kgchat/proto;proto";
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+// TokenType classifies each streamed token for SSE event routing.
+enum TokenType {
+  TOKEN_TYPE_UNSPECIFIED = 0;
+  TEXT = 1;           // Normal text token from LLM
+  GRAPH_UPDATE = 2;   // Subgraph data for frontend visualization
+  CITATION = 3;       // Inline citation reference
+  ERROR = 4;          // Error message
+  DONE = 5;           // End-of-stream sentinel
+}
+
+// IngestStage tracks document processing progress through the pipeline.
+enum IngestStage {
+  INGEST_STAGE_UNSPECIFIED = 0;
+  CHUNKING = 1;
+  ENTITY_EXTRACTION = 2;
+  RELATION_EXTRACTION = 3;
+  EMBEDDING_GENERATION = 4;
+  GRAPH_STORAGE = 5;
+  VECTOR_INDEXING = 6;
+  COMPLETED = 7;
+  FAILED = 8;
+}
+
+// ============================================================================
+// CORE GRAPH TYPES
+// ============================================================================
+
+// Node represents a single entity in the knowledge graph.
+// Entity types for cybersecurity: CVE, THREAT_ACTOR, VULNERABILITY,
+// SOFTWARE, ORGANIZATION, ATTACK_PATTERN, MITIGATION, etc.
+message Node {
+  string id = 1;                        // UUID v4 unique identifier
+  string label = 2;                     // Entity type (e.g., CVE, THREAT_ACTOR, ORG)
+  string name = 3;                      // Human-readable entity name
+  map<string, string> properties = 4;   // Arbitrary key-value metadata
+  repeated float embedding = 5;         // 384-dim vector for MiniLM-L6-v2
+  int64 created_at = 6;                 // Unix timestamp in milliseconds
+  float confidence = 7;                 // NER confidence score [0.0, 1.0]
+}
+
+// Edge represents a directed relationship between two nodes.
+// Relation types: EXPLOITS, MITIGATES, AFFECTS, USES, TARGETS,
+// ATTRIBUTED_TO, RELATED_TO, DISCOVERED_BY, etc.
+message Edge {
+  string id = 1;                        // UUID v4 unique identifier
+  string source_id = 2;                 // Source node UUID
+  string target_id = 3;                 // Target node UUID
+  string relation_type = 4;            // Relationship label
+  float weight = 5;                     // Edge confidence/strength [0.0, 1.0]
+  map<string, string> properties = 6;   // Arbitrary key-value metadata
+  string source_document = 7;           // Provenance: originating document ID
+  int64 created_at = 8;                 // Unix timestamp in milliseconds
+}
+
+// ============================================================================
+// CHAT TYPES
+// ============================================================================
+
+// ChatMessage represents a single turn in conversation history.
+message ChatMessage {
+  string role = 1;      // "user" or "assistant"
+  string content = 2;   // Message text content
+  int64 timestamp = 3;  // Unix timestamp in milliseconds
+}
+
+// ChatToken is a single streamed token in a chat response.
+message ChatToken {
+  string text = 1;         // Token text content or serialized data
+  TokenType type = 2;      // Token classification for SSE routing
+  string node_id = 3;      // Optional: referenced node for CITATION type
+}
+
+// ChatOptions configures LLM generation and response behavior.
+message ChatOptions {
+  float temperature = 1;          // LLM sampling temperature [0.0, 2.0]
+  int32 max_tokens = 2;           // Maximum response tokens (default: 1024)
+  bool include_graph_citation = 3; // Include [NODE:id] citation markers
+  bool stream_subgraph = 4;       // Stream graph updates as answer forms
+}
+
+// ============================================================================
+// SUBGRAPH & SEARCH TYPES
+// ============================================================================
+
+// SubgraphQuery defines parameters for neighborhood expansion.
+message SubgraphQuery {
+  repeated string seed_node_ids = 1;    // Starting node UUIDs for traversal
+  int32 max_hops = 2;                   // Max traversal depth (capped at 3)
+  repeated string relation_filter = 3;  // Optional edge type whitelist
+  int32 max_nodes = 4;                  // Hard node limit (default: 50)
+}
+
+// SubgraphResult contains the extracted subgraph with nodes and edges.
+message SubgraphResult {
+  repeated Node nodes = 1;
+  repeated Edge edges = 2;
+  int32 total_nodes_visited = 3;  // Diagnostic: nodes touched during traversal
+  float traversal_time_ms = 4;    // Diagnostic: traversal wall time
+}
+
+// VectorSearchResult pairs a node ID with its similarity distance.
+message VectorSearchResult {
+  string node_id = 1;
+  float distance = 2;    // Cosine distance (lower = more similar)
+  Node node = 3;          // Full node data (populated on request)
+}
+
+// GraphCitation links an answer span to a specific graph element.
+message GraphCitation {
+  string node_id = 1;      // Referenced node UUID
+  string node_name = 2;    // Human-readable node name
+  string node_label = 3;   // Entity type label
+  string edge_id = 4;      // Optional: referenced edge UUID
+  string relation = 5;     // Optional: relationship type
+  string source_doc = 6;   // Provenance document
+}
+
+// ============================================================================
+// INGEST TYPES
+// ============================================================================
+
+// IngestProgress reports progress during document ingestion.
+message IngestProgress {
+  IngestStage stage = 1;
+  float progress = 2;        // 0.0 to 1.0
+  string message = 3;        // Human-readable status message
+  int32 entities_found = 4;
+  int32 relations_found = 5;
+  int32 chunks_processed = 6;
+  int32 total_chunks = 7;
+}

@@ -1,0 +1,150 @@
+// graph.proto — Graph Engine service definition.
+// Implements high-performance graph storage, traversal, and vector search.
+// Served by the Rust graph-engine on port 50051.
+
+syntax = "proto3";
+package kgchat;
+
+option go_package = "github.com/kgchat/proto;proto";
+
+import "common.proto";
+
+// ============================================================================
+// SERVICE DEFINITION
+// ============================================================================
+
+// GraphService provides graph CRUD, traversal, and vector similarity search.
+// All RPCs are designed for sub-10ms latency on typical workloads.
+service GraphService {
+  // UpsertNode creates or updates a node in the knowledge graph.
+  // If a node with the same ID exists, its properties and embedding are merged.
+  rpc UpsertNode(UpsertNodeRequest) returns (NodeResponse);
+
+  // UpsertEdge creates or updates a directed edge between two nodes.
+  // Both source and target nodes must exist; returns NOT_FOUND otherwise.
+  rpc UpsertEdge(UpsertEdgeRequest) returns (EdgeResponse);
+
+  // QuerySubgraph performs n-hop neighborhood expansion from seed nodes.
+  // Uses BFS traversal with optional edge type filtering and node limits.
+  rpc QuerySubgraph(SubgraphQuery) returns (SubgraphResult);
+
+  // VectorSearch finds top-K nearest neighbor nodes by embedding similarity.
+  // Uses HNSW index for approximate nearest neighbor search.
+  rpc VectorSearch(VectorSearchRequest) returns (VectorSearchResponse);
+
+  // HybridSearch combines vector similarity with graph path distance
+  // for re-ranked results. Useful for context-aware retrieval.
+  rpc HybridSearch(HybridSearchRequest) returns (HybridSearchResponse);
+
+  // BatchIngest accepts a stream of node/edge upserts for bulk loading.
+  // Returns aggregated progress after all items are processed.
+  rpc BatchIngest(stream BatchIngestRequest) returns (BatchIngestResponse);
+
+  // GetNode retrieves a single node by ID.
+  rpc GetNode(GetNodeRequest) returns (NodeResponse);
+
+  // DeleteNode removes a node and all its connected edges.
+  rpc DeleteNode(DeleteNodeRequest) returns (DeleteNodeResponse);
+
+  // GetStats returns graph statistics (node/edge counts, index size).
+  rpc GetStats(StatsRequest) returns (StatsResponse);
+}
+
+// ============================================================================
+// REQUEST / RESPONSE MESSAGES
+// ============================================================================
+
+message UpsertNodeRequest {
+  Node node = 1;
+}
+
+message NodeResponse {
+  Node node = 1;
+  bool created = 2;  // true if new, false if updated
+}
+
+message UpsertEdgeRequest {
+  Edge edge = 1;
+}
+
+message EdgeResponse {
+  Edge edge = 1;
+  bool created = 2;
+}
+
+message GetNodeRequest {
+  string node_id = 1;
+}
+
+message DeleteNodeRequest {
+  string node_id = 1;
+}
+
+message DeleteNodeResponse {
+  bool deleted = 1;
+  int32 edges_removed = 2;  // Number of connected edges also removed
+}
+
+// VectorSearchRequest finds nodes similar to a query embedding.
+message VectorSearchRequest {
+  repeated float embedding = 1;   // 384-dim query vector
+  int32 k = 2;                     // Number of results (default: 10)
+  repeated string label_filter = 3; // Optional: restrict to specific entity types
+  float min_score = 4;             // Optional: minimum similarity threshold
+}
+
+message VectorSearchResponse {
+  repeated VectorSearchResult results = 1;
+  float search_time_ms = 2;
+}
+
+// HybridSearchRequest combines vector search with graph distance scoring.
+message HybridSearchRequest {
+  repeated float embedding = 1;    // Query vector for semantic similarity
+  repeated string anchor_ids = 2;  // Graph nodes to measure path distance from
+  int32 k = 3;                     // Number of results
+  float vector_weight = 4;         // Weight for vector score [0.0, 1.0]
+  float graph_weight = 5;          // Weight for graph proximity [0.0, 1.0]
+}
+
+message HybridSearchResponse {
+  repeated HybridResult results = 1;
+  float search_time_ms = 2;
+}
+
+// HybridResult combines vector and graph proximity scores.
+message HybridResult {
+  string node_id = 1;
+  float vector_score = 2;     // Cosine similarity [0.0, 1.0]
+  float graph_score = 3;      // Graph proximity score [0.0, 1.0]
+  float combined_score = 4;   // Weighted combination
+  Node node = 5;
+  int32 shortest_path_hops = 6;  // Shortest path to nearest anchor
+}
+
+// BatchIngestRequest wraps a single node or edge for streaming ingestion.
+message BatchIngestRequest {
+  oneof item {
+    Node node = 1;
+    Edge edge = 2;
+  }
+}
+
+// BatchIngestResponse summarizes the bulk ingestion results.
+message BatchIngestResponse {
+  int32 nodes_upserted = 1;
+  int32 edges_upserted = 2;
+  int32 errors = 3;
+  repeated string error_messages = 4;
+  float total_time_ms = 5;
+}
+
+message StatsRequest {}
+
+message StatsResponse {
+  int64 total_nodes = 1;
+  int64 total_edges = 2;
+  int64 vector_index_size = 3;
+  map<string, int64> nodes_by_label = 4;   // Count per entity type
+  map<string, int64> edges_by_type = 5;    // Count per relation type
+}

@@ -1,0 +1,65 @@
+[package]
+name = "graph-engine"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance knowledge graph engine with HNSW vector search"
+authors = ["KGChat Team"]
+
+[dependencies]
+# gRPC server framework
+tonic = { version = "0.11", features = ["tls"] }
+prost = "0.12"
+prost-types = "0.12"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+
+# Graph data structure — StableGraph retains indices on removal
+petgraph = { version = "0.6", features = ["serde-1"] }
+
+# Persistent key-value store with column families for separate data types
+rocksdb = { version = "0.21", features = ["multi-threaded-cf"] }
+
+# Approximate nearest neighbor search (HNSW algorithm)
+hnsw_rs = "0.3"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+bincode = "1"
+
+# UUID generation for node/edge IDs
+uuid = { version = "1", features = ["v4"] }
+
+# Structured logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+
+# Error handling — thiserror for typed errors, anyhow for propagation
+anyhow = "1"
+thiserror = "1"
+
+# Concurrent hash map — lock-free reads for node index lookups
+dashmap = "5"
+
+# Data parallelism for batch operations
+rayon = "1"
+
+# Timestamp generation
+chrono = "0.4"
+
+[build-dependencies]
+tonic-build = "0.11"
+
+[[bin]]
+name = "graph-engine"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+[dev-dependencies]
+tempfile = "3"
