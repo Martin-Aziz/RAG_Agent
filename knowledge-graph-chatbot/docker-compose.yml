@@ -1,0 +1,227 @@
+# ============================================================================
+# Knowledge Graph Chatbot — Full-Stack Docker Compose
+# ============================================================================
+# Usage:
+#   docker-compose up --build    # Build and start all services
+#   docker-compose up -d         # Detached mode
+#   docker-compose logs -f       # Follow logs
+# ============================================================================
+
+version: '3.9'
+
+services:
+  # ==========================================================================
+  # Rust graph-engine — High-performance graph storage + vector search
+  # ==========================================================================
+  graph-engine:
+    build:
+      context: .
+      dockerfile: services/graph-engine/Dockerfile
+    container_name: kgchat-graph-engine
+    ports:
+      - "50051:50051"
+    environment:
+      - ROCKSDB_PATH=/data/rocksdb
+      - HNSW_INDEX_PATH=/data/hnsw
+      - GRPC_PORT=50051
+      - LOG_LEVEL=info
+      - EMBEDDING_DIM=384
+      - RUST_LOG=info
+    volumes:
+      - graph-engine-data:/data
+    networks:
+      - kgchat-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "grpc_health_probe", "-addr=:50051" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+
+  # ==========================================================================
+  # Go api-gateway — REST/SSE/WebSocket gateway
+  # ==========================================================================
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: kgchat-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - KG_SERVER_PORT=8080
+      - GRAPH_ENGINE_ADDR=graph-engine:50051
+      - AI_PIPELINE_ADDR=ai-pipeline:50052
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-me}
+      - REDIS_URL=redis:6379
+      - POSTGRES_URL=postgresql://${POSTGRES_USER:-kgchat}:${POSTGRES_PASSWORD:-kgchat}@postgres:5432/${POSTGRES_DB:-kgchat}?sslmode=disable
+      - KG_SERVER_CORS_ORIGINS=http://localhost:3000,http://web-client:3000
+      - KG_AUTH_ENABLED=false
+    depends_on:
+      graph-engine:
+        condition: service_started
+      ai-pipeline:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - kgchat-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+
+  # ==========================================================================
+  # Python ai-pipeline — NLP extraction, RAG, LLM inference
+  # ==========================================================================
+  ai-pipeline:
+    build:
+      context: .
+      dockerfile: services/ai-pipeline/Dockerfile
+    container_name: kgchat-ai-pipeline
+    ports:
+      - "50052:50052"
+      - "8001:8001"
+    environment:
+      - GRPC_PORT=50052
+      - HTTP_PORT=8001
+      - GRAPH_ENGINE_ADDR=graph-engine:50051
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      - TOPIC_DOMAIN=${TOPIC_DOMAIN:-Cybersecurity threat intelligence and CVE vulnerabilities}
+      - LOG_LEVEL=INFO
+    volumes:
+      - ai-pipeline-models:/root/.cache
+      - ai-pipeline-logs:/app/logs
+    depends_on:
+      graph-engine:
+        condition: service_started
+      ollama:
+        condition: service_started
+    networks:
+      - kgchat-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+
+  # ==========================================================================
+  # Next.js web-client — Chat UI + Graph Visualizer
+  # ==========================================================================
+  web-client:
+    build:
+      context: ./services/web-client
+      dockerfile: Dockerfile
+    container_name: kgchat-web-client
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - API_GATEWAY_URL=http://api-gateway:8080
+    depends_on:
+      - api-gateway
+    networks:
+      - kgchat-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ==========================================================================
+  # Infrastructure services
+  # ==========================================================================
+
+  # Ollama — Local LLM server
+  ollama:
+    image: ollama/ollama:latest
+    container_name: kgchat-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - kgchat-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+
+  # PostgreSQL — Session storage, user data
+  postgres:
+    image: postgres:16-alpine
+    container_name: kgchat-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-kgchat}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-kgchat}
+      - POSTGRES_DB=${POSTGRES_DB:-kgchat}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - kgchat-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kgchat}" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Redis — Rate limiting, caching, session store
+  redis:
+    image: redis:7-alpine
+    container_name: kgchat-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - kgchat-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+# ============================================================================
+# Named volumes for data persistence
+# ============================================================================
+volumes:
+  graph-engine-data:
+    driver: local
+  ai-pipeline-models:
+    driver: local
+  ai-pipeline-logs:
+    driver: local
+  ollama-models:
+    driver: local
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+# ============================================================================
+# Bridge network for inter-service communication
+# ============================================================================
+networks:
+  kgchat-network:
+    driver: bridge
+    name: kgchat-network

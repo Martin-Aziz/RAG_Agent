@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   Global base styles — dark cyberpunk aesthetic
+   ============================================================================ */
+
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #111827;
+  --bg-card: #1a1f2e;
+  --accent-cyan: #06d6a0;
+  --accent-blue: #118ab2;
+  --accent-purple: #7b2cbf;
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ============================================================================
+   Scrollbar styling
+   ============================================================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* ============================================================================
+   Glass morphism cards
+   ============================================================================ */
+
+.glass-card {
+  background: rgba(26, 31, 46, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+
+/* ============================================================================
+   Citation markers in chat messages — [NODE:xxx]
+   ============================================================================ */
+
+.citation-marker {
+  color: var(--accent-cyan);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  background: rgba(6, 214, 160, 0.1);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.citation-marker:hover {
+  background: rgba(6, 214, 160, 0.25);
+}
+
+/* ============================================================================
+   Streaming cursor animation
+   ============================================================================ */
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.streaming-cursor::after {
+  content: '▋';
+  color: var(--accent-cyan);
+  animation: blink 0.8s step-end infinite;
+  margin-left: 2px;
+}
+
+/* ============================================================================
+   Graph node label styles
+   ============================================================================ */
+
+.node-label-CVE { color: #e63946; }
+.node-label-THREAT_ACTOR { color: #f77f00; }
+.node-label-SOFTWARE { color: #118ab2; }
+.node-label-ORGANIZATION { color: #06d6a0; }
+.node-label-MITIGATION { color: #8ac926; }
+.node-label-ATTACK_PATTERN { color: #fca311; }
+.node-label-VULNERABILITY { color: #ff6b6b; }
+.node-label-MALWARE { color: #c77dff; }
+
+/* ============================================================================
+   Gradient text
+   ============================================================================ */
+
+.gradient-text {
+  background: linear-gradient(135deg, #06d6a0 0%, #118ab2 50%, #7b2cbf 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================================================================
+   Glow effects
+   ============================================================================ */
+
+.glow-border {
+  position: relative;
+}
+
+.glow-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(6, 214, 160, 0.3), rgba(17, 138, 178, 0.3));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
